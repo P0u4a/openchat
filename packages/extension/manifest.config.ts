@@ -20,11 +20,20 @@ export default defineManifest({
       js: ["src/contents/claude.ts"],
       run_at: "document_idle",
     },
+    {
+      matches: ["https://chatgpt.com/*"],
+      js: ["src/contents/chatgpt.ts"],
+      run_at: "document_start",
+    },
   ],
   web_accessible_resources: [
     {
       resources: ["src/contents/claude-intercept.js"],
       matches: ["https://claude.ai/*"],
+    },
+    {
+      resources: ["src/contents/chatgpt-intercept.js"],
+      matches: ["https://chatgpt.com/*"],
     },
   ],
   action: {

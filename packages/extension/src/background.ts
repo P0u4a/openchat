@@ -1,4 +1,5 @@
 import { parseClaudeConversation } from "./lib/parsers/claude.js";
+import { parseChatGPTConversation } from "./lib/parsers/chatgpt.js";
 import { upsertConversation, getAllConversations } from "./lib/storage/db.js";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -36,6 +37,26 @@ async function handleCapturedConversation(message: {
       );
 
       // Notify side panel to refresh
+      chrome.runtime
+        .sendMessage({
+          type: "openchat:conversation-updated",
+        })
+        .catch(() => {
+          // ignore if side panel is closed
+        });
+      return;
+    }
+
+    if (message.platform === "chatgpt") {
+      const conversation = parseChatGPTConversation(
+        message.data as Parameters<typeof parseChatGPTConversation>[0],
+        message.url
+      );
+      await upsertConversation(conversation);
+      console.log(
+        `[OpenChat] Saved ChatGPT conversation: "${conversation.title}" (${conversation.messages.length} messages)`
+      );
+
       chrome.runtime
         .sendMessage({
           type: "openchat:conversation-updated",
