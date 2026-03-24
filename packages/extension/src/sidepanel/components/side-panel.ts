@@ -4,6 +4,7 @@ import { until } from "lit/directives/until.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { backArrow } from "./icons/back-arrow.js";
 import { claudeIcon } from "./icons/claude-icon.js";
+import { chatgptIcon } from "./icons/chatgpt-icon.js";
 import { sortLatestIcon } from "./icons/sort-latest.js";
 import { sortEarliestIcon } from "./icons/sort-earliest.js";
 import type {
@@ -53,13 +54,20 @@ export class SidePanel extends LitElement {
 
     .filters {
       display: flex;
+      flex-direction: column;
       gap: var(--space-2);
       margin-bottom: var(--space-3);
     }
 
+    .filters > div {
+      display: flex;
+      flex-direction: row;
+      gap: var(--space-2);
+    }
+
     .search-input {
       flex: 1;
-      min-width: 0;
+      width: 100%;
       padding: var(--space-1_5) var(--space-2_5);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -191,6 +199,19 @@ export class SidePanel extends LitElement {
       color: var(--chatgpt-color);
     }
 
+    .platform-icon-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 0;
+    }
+
+    .platform-icon-wrap.chatgpt {
+      background: oklch(100% 0 0);
+      border-radius: 999px;
+      padding: 2px;
+    }
+
     .empty-state {
       text-align: center;
       padding: var(--space-12) var(--space-4);
@@ -289,9 +310,7 @@ export class SidePanel extends LitElement {
     let result = this.conversations;
 
     if (this.platformFilter !== "all") {
-      result = result.filter(
-        (c) => c.source.platform === this.platformFilter
-      );
+      result = result.filter((c) => c.source.platform === this.platformFilter);
     }
 
     if (this.searchQuery) {
@@ -315,7 +334,8 @@ export class SidePanel extends LitElement {
   }
 
   private onPlatformChange(e: Event) {
-    this.platformFilter = (e.target as HTMLSelectElement).value as typeof this.platformFilter;
+    this.platformFilter = (e.target as HTMLSelectElement)
+      .value as typeof this.platformFilter;
   }
 
   private formatDate(dateStr: string) {
@@ -396,15 +416,20 @@ export class SidePanel extends LitElement {
             @input=${this.onSearchInput}
           />
         </search>
-        <select @change=${this.onPlatformChange} .value=${this.platformFilter}>
-          <option value="all">All</option>
-          <option value="claude">Claude</option>
-          <option value="chatgpt">ChatGPT</option>
-        </select>
-        <button class="sort-btn" @click=${this.toggleSortOrder}>
-          ${this.sortOrder === "latest" ? sortLatestIcon : sortEarliestIcon}
-          ${this.sortOrder === "latest" ? "Latest" : "Earliest"}
-        </button>
+        <div>
+          <select
+            @change=${this.onPlatformChange}
+            .value=${this.platformFilter}
+          >
+            <option value="all">All</option>
+            <option value="claude">Claude</option>
+            <option value="chatgpt">ChatGPT</option>
+          </select>
+          <button class="sort-btn" @click=${this.toggleSortOrder}>
+            ${this.sortOrder === "latest" ? sortLatestIcon : sortEarliestIcon}
+            ${this.sortOrder === "latest" ? "Latest" : "Earliest"}
+          </button>
+        </div>
       </div>
     `;
   }
@@ -439,7 +464,13 @@ export class SidePanel extends LitElement {
                     <div class="conversation-title">${conv.title}</div>
                     <div class="conversation-meta">
                       <span class="platform-badge ${conv.source.platform}">
-                        ${conv.source.platform === "claude" ? claudeIcon : ""}
+                        ${conv.source.platform === "claude"
+                          ? claudeIcon
+                          : conv.source.platform === "chatgpt"
+                          ? html`<span class="platform-icon-wrap chatgpt"
+                              >${chatgptIcon}</span
+                            >`
+                          : ""}
                         ${conv.source.platform}
                       </span>
                       <span>${conv.messages.length} messages</span>
