@@ -15,3 +15,8 @@ A browser extension that captures requests and saves your conversation history l
 ### MCP (optional)
 
 An MCP server that can communicate with the browser extension to pull conversations into your terminal agents for agents like Codex and Claude Code to use.
+
+## TODO
+
+[ ] Paste conversation from sidepanel into chat UI
+[ ] Resume existing conversation by pasting and indicate client switch in side panel UI
