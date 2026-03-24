@@ -4,6 +4,8 @@ import { until } from "lit/directives/until.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { backArrow } from "./icons/back-arrow.js";
 import { claudeIcon } from "./icons/claude-icon.js";
+import { sortLatestIcon } from "./icons/sort-latest.js";
+import { sortEarliestIcon } from "./icons/sort-earliest.js";
 import type {
   OpenChatConversation,
   OpenChatContentBlock,
@@ -46,6 +48,95 @@ export class SidePanel extends LitElement {
     }
 
     .back-btn:hover {
+      background: var(--bg-secondary);
+    }
+
+    .filters {
+      display: flex;
+      gap: var(--space-2);
+      margin-bottom: var(--space-3);
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 0;
+      padding: var(--space-1_5) var(--space-2_5);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      font-size: var(--text-sm);
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+    }
+
+    .search-input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    select {
+      appearance: base-select;
+      padding: var(--space-1_5) var(--space-2_5);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      font-size: var(--text-sm);
+      font-family: inherit;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    select:focus {
+      border-color: var(--accent);
+    }
+
+    select::picker(select) {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      padding: var(--space-1);
+    }
+
+    select option {
+      padding: var(--space-1_5) var(--space-2_5);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: var(--text-sm);
+    }
+
+    select option:hover {
+      background: var(--bg-secondary);
+    }
+
+    select option:checked {
+      background: var(--accent);
+      color: oklch(98% 0 0);
+    }
+
+    .sort-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-1_5) var(--space-2_5);
+      cursor: pointer;
+      font-size: var(--text-sm);
+      font-family: inherit;
+      color: var(--text);
+      white-space: nowrap;
+      transition: border-color 0.15s;
+    }
+
+    .sort-btn:hover {
       background: var(--bg-secondary);
     }
 
@@ -165,6 +256,15 @@ export class SidePanel extends LitElement {
   @state()
   private selectedConversation: OpenChatConversation | null = null;
 
+  @state()
+  private searchQuery = "";
+
+  @state()
+  private platformFilter: "all" | "claude" | "chatgpt" = "all";
+
+  @state()
+  private sortOrder: "latest" | "earliest" = "latest";
+
   override connectedCallback() {
     super.connectedCallback();
     this.loadConversations();
@@ -183,6 +283,39 @@ export class SidePanel extends LitElement {
     if (response?.conversations) {
       this.conversations = response.conversations;
     }
+  }
+
+  private get filteredConversations() {
+    let result = this.conversations;
+
+    if (this.platformFilter !== "all") {
+      result = result.filter(
+        (c) => c.source.platform === this.platformFilter
+      );
+    }
+
+    if (this.searchQuery) {
+      const q = this.searchQuery.toLowerCase();
+      result = result.filter((c) => c.title.toLowerCase().includes(q));
+    }
+
+    if (this.sortOrder === "earliest") {
+      result = [...result].reverse();
+    }
+
+    return result;
+  }
+
+  private toggleSortOrder() {
+    this.sortOrder = this.sortOrder === "latest" ? "earliest" : "latest";
+  }
+
+  private onSearchInput(e: Event) {
+    this.searchQuery = (e.target as HTMLInputElement).value;
+  }
+
+  private onPlatformChange(e: Event) {
+    this.platformFilter = (e.target as HTMLSelectElement).value as typeof this.platformFilter;
   }
 
   private formatDate(dateStr: string) {
@@ -251,43 +384,72 @@ export class SidePanel extends LitElement {
     `;
   }
 
-  private renderConversationList() {
-    if (this.conversations.length === 0) {
-      return html`
-        <div class="header">
-          <h1>OpenChat</h1>
-        </div>
-        <div class="empty-state">
-          <p>No conversations captured yet.</p>
-          <p>Visit Claude or ChatGPT and start chatting.</p>
-        </div>
-      `;
-    }
+  private renderFilters() {
+    return html`
+      <div class="filters">
+        <search>
+          <input
+            class="search-input"
+            type="search"
+            placeholder="Search conversations..."
+            .value=${this.searchQuery}
+            @input=${this.onSearchInput}
+          />
+        </search>
+        <select @change=${this.onPlatformChange} .value=${this.platformFilter}>
+          <option value="all">All</option>
+          <option value="claude">Claude</option>
+          <option value="chatgpt">ChatGPT</option>
+        </select>
+        <button class="sort-btn" @click=${this.toggleSortOrder}>
+          ${this.sortOrder === "latest" ? sortLatestIcon : sortEarliestIcon}
+          ${this.sortOrder === "latest" ? "Latest" : "Earliest"}
+        </button>
+      </div>
+    `;
+  }
 
+  private renderConversationList() {
     return html`
       <div class="header">
         <h1>OpenChat</h1>
       </div>
-      <div class="conversation-list">
-        ${this.conversations.map(
-          (conv) => html`
-            <div
-              class="conversation-card"
-              @click=${() => this.selectConversation(conv)}
-            >
-              <div class="conversation-title">${conv.title}</div>
-              <div class="conversation-meta">
-                <span class="platform-badge ${conv.source.platform}">
-                  ${conv.source.platform === "claude" ? claudeIcon : ""}
-                  ${conv.source.platform}
-                </span>
-                <span>${conv.messages.length} messages</span>
-                <span>${this.formatDate(conv.updatedAt)}</span>
-              </div>
+      ${this.renderFilters()}
+      ${this.filteredConversations.length === 0
+        ? html`
+            <div class="empty-state">
+              <p>
+                ${this.conversations.length === 0
+                  ? "No conversations captured yet."
+                  : "No conversations match your filters."}
+              </p>
+              ${this.conversations.length === 0
+                ? html`<p>Visit Claude or ChatGPT and start chatting.</p>`
+                : ""}
             </div>
           `
-        )}
-      </div>
+        : html`
+            <div class="conversation-list">
+              ${this.filteredConversations.map(
+                (conv) => html`
+                  <div
+                    class="conversation-card"
+                    @click=${() => this.selectConversation(conv)}
+                  >
+                    <div class="conversation-title">${conv.title}</div>
+                    <div class="conversation-meta">
+                      <span class="platform-badge ${conv.source.platform}">
+                        ${conv.source.platform === "claude" ? claudeIcon : ""}
+                        ${conv.source.platform}
+                      </span>
+                      <span>${conv.messages.length} messages</span>
+                      <span>${this.formatDate(conv.updatedAt)}</span>
+                    </div>
+                  </div>
+                `
+              )}
+            </div>
+          `}
     `;
   }
 
