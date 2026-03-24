@@ -2,7 +2,7 @@ import { defineManifest } from "@crxjs/vite-plugin";
 
 export default defineManifest({
   manifest_version: 3,
-  name: "OpenChat Browser Extension",
+  name: "OpenChat",
   version: "0.0.1",
   description: "Share conversations across AI chat UIs",
   permissions: ["storage", "activeTab", "sidePanel"],
