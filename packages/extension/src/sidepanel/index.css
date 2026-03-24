@@ -1,0 +1,42 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: oklch(96.7% 0.001 286.375);
+  --bg-secondary: oklch(92% 0.002 286);
+  --text: oklch(14.1% 0.005 285.823);
+  --text-secondary: oklch(45% 0.005 286);
+  --border: oklch(85% 0.003 286);
+  --accent: oklch(55% 0.2 270);
+  --accent-hover: oklch(48% 0.2 270);
+  --claude-color: oklch(65% 0.15 65);
+  --chatgpt-color: oklch(60% 0.15 165);
+  --radius: 0.375rem;
+  --font: system-ui, -apple-system, sans-serif;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: oklch(14.1% 0.005 285.823);
+    --bg-secondary: oklch(20% 0.008 286);
+    --text: oklch(96.7% 0.001 286.375);
+    --text-secondary: oklch(65% 0.005 286);
+    --border: oklch(25% 0.008 286);
+  }
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
