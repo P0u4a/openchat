@@ -1,5 +1,5 @@
 import { parseClaudeConversation } from "./lib/parsers/claude.js";
-import { upsertConversation } from "./lib/storage/db.js";
+import { upsertConversation, getAllConversations } from "./lib/storage/db.js";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
@@ -12,10 +12,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === "openchat:get-conversations") {
-    import("./lib/storage/db.js").then(({ getAllConversations }) => {
-      getAllConversations().then((conversations) => {
-        sendResponse({ conversations });
-      });
+    getAllConversations().then((conversations) => {
+      sendResponse({ conversations });
     });
     return true;
   }
