@@ -21,6 +21,12 @@ export default defineManifest({
       run_at: "document_idle",
     },
   ],
+  web_accessible_resources: [
+    {
+      resources: ["src/contents/claude-intercept.js"],
+      matches: ["https://claude.ai/*"],
+    },
+  ],
   action: {
     default_title: "OpenChat",
   },

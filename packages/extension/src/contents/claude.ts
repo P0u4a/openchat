@@ -4,12 +4,12 @@
  * Relays captured data to the background service worker
  */
 
-import { claudeFetchIntercept } from "./claude-intercept.js";
 import { CLAUDE_ORIGIN } from "../lib/constants.js";
 
 function injectInterceptor() {
   const script = document.createElement("script");
-  script.textContent = `(${claudeFetchIntercept.toString()})("${CLAUDE_ORIGIN}");`;
+  script.src = chrome.runtime.getURL("src/contents/claude-intercept.js");
+  script.dataset.origin = CLAUDE_ORIGIN;
   (document.head || document.documentElement).appendChild(script);
   script.remove();
 }
