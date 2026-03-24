@@ -6,7 +6,11 @@ export default defineManifest({
   version: "0.0.1",
   description: "Share conversations across AI chat UIs",
   permissions: ["storage", "activeTab", "sidePanel"],
-  host_permissions: ["https://chatgpt.com/*", "https://claude.ai/*"],
+  host_permissions: [
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "http://127.0.0.1:27124/*",
+  ],
   background: {
     service_worker: "src/background.ts",
     type: "module",
