@@ -2,22 +2,16 @@
 
 Openchat protocol specification v0.0.1
 
-An open format for sharing conversation histories across different AI chat UIs.
+## An open format for sharing conversation histories across different AI chat UIs.
 
-Powered by:
+Just talk to your chat client as you would normally, OpenChat will sync the conversation in the background, letting you swap in and out of different clients while maintaining your entire conversation history.
 
-- Chrome Extension as the bridge for storing chat history from the web UIs
-- MCP server for pulling chat data from browser into terminal agents (possibly using chrome-devtools-mcp)
+## Setup
 
-## ChatGPT
+### Browser Extension
 
-`https://chatgpt.com/backend-api/conversation/{id}`
-`https://chatgpt.com/backend-api/f/conversation`
+A browser extension that captures requests and saves your conversation history locally. Works with ChatGPT and Claude.
 
-## Claude
+### MCP (optional)
 
-???
-
-## Gemini
-
-???
+An MCP server that can communicate with the browser extension to pull conversations into your terminal agents for agents like Codex and Claude Code to use.
