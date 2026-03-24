@@ -1,9 +1,13 @@
 import { LitElement, html, css } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { until } from "lit/directives/until.js";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { backArrow } from "./icons/back-arrow.js";
 import type {
   OpenChatConversation,
   OpenChatContentBlock,
 } from "../../lib/schema/conversation.js";
+import { renderMarkdown } from "../../utils/markdown.js";
 
 @customElement("oc-sidepanel")
 export class SidePanel extends LitElement {
@@ -20,13 +24,17 @@ export class SidePanel extends LitElement {
     }
 
     .header h1 {
-      font-size: var(--text-lg);
+      font-size: var(--text-base);
       font-weight: 600;
       margin: 0;
       flex: 1;
+      text-wrap: pretty;
     }
 
     .back-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       background: none;
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -108,7 +116,7 @@ export class SidePanel extends LitElement {
 
     .message {
       max-width: 85%;
-      padding: var(--space-2_5) var(--space-3_5);
+      padding: var(--space-1_5) var(--space-2_5);
       border-radius: var(--radius);
       font-size: var(--text-sm);
       line-height: 1.5;
@@ -117,14 +125,14 @@ export class SidePanel extends LitElement {
 
     .message.user {
       align-self: flex-end;
-      background: var(--accent);
+      background: var(--bg-secondary);
       color: oklch(98% 0 0);
       border-bottom-right-radius: var(--radius-sm);
     }
 
     .message.assistant {
       align-self: flex-start;
-      background: var(--bg-secondary);
+      background: transparent;
       border-bottom-left-radius: var(--radius-sm);
     }
 
@@ -202,7 +210,12 @@ export class SidePanel extends LitElement {
       case "thinking":
         return html`<div class="thinking-block">${block.text}</div>`;
       case "text":
-        return html`<span>${block.text}</span>`;
+        return until(
+          renderMarkdown(block.text).then(
+            (content) => html`<span>${unsafeHTML(content)}</span>`
+          ),
+          html`<span>${block.text}</span>`
+        );
       case "code":
         return html`<pre><code>${block.code}</code></pre>`;
       case "tool_use":
@@ -220,7 +233,7 @@ export class SidePanel extends LitElement {
     const conv = this.selectedConversation!;
     return html`
       <div class="header">
-        <button class="back-btn" @click=${this.goBack}>&larr;</button>
+        <button class="back-btn" @click=${this.goBack}>${backArrow}</button>
         <h1>${conv.title}</h1>
       </div>
       <div class="chat-view">

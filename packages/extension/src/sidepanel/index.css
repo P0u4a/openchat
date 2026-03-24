@@ -12,8 +12,6 @@
   --text: oklch(14.1% 0.005 285.823);
   --text-secondary: oklch(45% 0.005 286);
   --border: oklch(85% 0.003 286);
-  --accent: oklch(55% 0.2 270);
-  --accent-hover: oklch(48% 0.2 270);
   --claude-color: oklch(65% 0.15 65);
   --chatgpt-color: oklch(60% 0.15 165);
   --font: system-ui, -apple-system, sans-serif;
