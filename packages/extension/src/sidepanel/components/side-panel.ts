@@ -3,6 +3,7 @@ import { customElement, state } from "lit/decorators.js";
 import { until } from "lit/directives/until.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { backArrow } from "./icons/back-arrow.js";
+import { claudeIcon } from "./icons/claude-icon.js";
 import type {
   OpenChatConversation,
   OpenChatContentBlock,
@@ -80,21 +81,23 @@ export class SidePanel extends LitElement {
     }
 
     .platform-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
       font-size: var(--text-xs);
       font-weight: 600;
       padding: var(--space-0_5) var(--space-1_5);
       border-radius: var(--radius);
       text-transform: uppercase;
+      background: var(--bg-secondary);
     }
 
     .platform-badge.claude {
-      background: oklch(90% 0.08 65);
-      color: oklch(35% 0.1 65);
+      color: var(--claude-color);
     }
 
     .platform-badge.chatgpt {
-      background: oklch(90% 0.08 165);
-      color: oklch(30% 0.1 165);
+      color: var(--chatgpt-color);
     }
 
     .empty-state {
@@ -275,6 +278,7 @@ export class SidePanel extends LitElement {
               <div class="conversation-title">${conv.title}</div>
               <div class="conversation-meta">
                 <span class="platform-badge ${conv.source.platform}">
+                  ${conv.source.platform === "claude" ? claudeIcon : ""}
                   ${conv.source.platform}
                 </span>
                 <span>${conv.messages.length} messages</span>
