@@ -45,7 +45,7 @@ export function formatConversationMarkdown(
   lines.push("");
 
   conversation.messages.forEach((message, index) => {
-    lines.push(`## Message ${index + 1} - ${message.role}`);
+    lines.push(`## ${message.role}`);
     lines.push("");
 
     const metadata = formatMessageMetadata(message);
@@ -77,16 +77,8 @@ export function formatConversationMarkdown(
 export function formatMessageMetadata(message: OpenChatMessage): string | null {
   const parts: string[] = [];
 
-  if (message.timestamp) {
-    parts.push(`Time: ${message.timestamp}`);
-  }
-
   if (message.model) {
     parts.push(`Model: ${message.model}`);
-  }
-
-  if (message.platformMessageId) {
-    parts.push(`Platform Message ID: ${message.platformMessageId}`);
   }
 
   return parts.length > 0 ? `_${parts.join(" · ")}_` : null;
