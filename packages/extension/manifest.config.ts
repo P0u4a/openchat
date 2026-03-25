@@ -40,7 +40,12 @@ export default defineManifest({
       matches: ["https://chatgpt.com/*"],
     },
   ],
+  icons: {
+    128: "assets/icon128.png",
+    48: "assets/icon48.png",
+  },
   action: {
     default_title: "OpenChat",
+    default_icon: "assets/icon128.png",
   },
 });
