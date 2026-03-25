@@ -1,5 +1,5 @@
 {
-  "name": "openchat",
+  "name": "@p0u4a/openchat-mcp",
   "version": "0.0.1",
   "type": "module",
   "bin": {
