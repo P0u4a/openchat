@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "bin": {
-    "openchat": "./dist/index.mjs"
+    "openchat": "dist/index.mjs"
   },
   "files": [
     "dist"
