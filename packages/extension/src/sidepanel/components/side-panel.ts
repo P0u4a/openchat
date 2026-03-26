@@ -10,8 +10,15 @@ import { sortEarliestIcon } from "./icons/sort-earliest.js";
 import type {
   OpenChatConversation,
   OpenChatContentBlock,
+  OpenChatMessage,
 } from "../../lib/schema/conversation.js";
 import { renderMarkdown } from "../../utils/markdown.js";
+import {
+  formatConversationMarkdown,
+  formatMessageMarkdown,
+} from "../../utils/conversation-markdown.js";
+import { pasteIcon } from "./icons/paste-icon.js";
+import { isSupportedPage } from "../../utils/supported-page.js";
 
 @customElement("oc-sidepanel")
 export class SidePanel extends LitElement {
@@ -151,7 +158,7 @@ export class SidePanel extends LitElement {
     .conversation-list {
       display: flex;
       flex-direction: column;
-      gap: var(--space-2);
+      gap: var(--space-4);
     }
 
     .conversation-card {
@@ -260,6 +267,45 @@ export class SidePanel extends LitElement {
       border-bottom: 1px solid var(--border);
     }
 
+    .paste-btn {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      gap: var(--space-1);
+      background: none;
+      border: none;
+      border-radius: var(--radius);
+      padding: var(--space-1_5) var(--space-2_5);
+      cursor: pointer;
+      font-size: var(--text-xs);
+      font-family: inherit;
+      color: var(--text);
+      transition: background 0.15s;
+    }
+
+    .paste-btn:hover:not(:disabled) {
+      background: var(--bg-secondary);
+    }
+
+    .paste-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .paste-btn svg {
+      flex-shrink: 0;
+    }
+
+    .conversation-card-row {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .message-footer {
+      margin-top: var(--space-1_5);
+    }
+
     .message pre {
       background: oklch(20% 0.005 286);
       color: oklch(90% 0.005 286);
@@ -286,14 +332,26 @@ export class SidePanel extends LitElement {
   @state()
   private sortOrder: "latest" | "earliest" = "latest";
 
+  @state()
+  private activeTabId: number | null = null;
+
+  @state()
+  private isOnSupportedPage = false;
+
   override connectedCallback() {
     super.connectedCallback();
     this.loadConversations();
+    this.updateActiveTab();
 
     chrome.runtime.onMessage.addListener((message) => {
       if (message.type === "openchat:conversation-updated") {
         this.loadConversations();
       }
+    });
+
+    chrome.tabs.onActivated.addListener(() => this.updateActiveTab());
+    chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+      if (changeInfo.url) this.updateActiveTab();
     });
   }
 
@@ -353,6 +411,38 @@ export class SidePanel extends LitElement {
     return date.toLocaleDateString();
   }
 
+  private async updateActiveTab() {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+
+    if (tab?.id && tab.url) {
+      this.activeTabId = tab.id;
+      this.isOnSupportedPage = isSupportedPage(tab.url);
+    } else {
+      this.activeTabId = null;
+      this.isOnSupportedPage = false;
+    }
+  }
+
+  private async pasteToChat(text: string) {
+    if (!this.activeTabId || !this.isOnSupportedPage) return;
+    await chrome.tabs.sendMessage(this.activeTabId, {
+      type: "openchat:paste-chat",
+      text,
+    });
+  }
+
+  private pasteConversation(e: Event, conv: OpenChatConversation) {
+    e.stopPropagation();
+    this.pasteToChat(formatConversationMarkdown(conv));
+  }
+
+  private pasteMessage(msg: OpenChatMessage) {
+    this.pasteToChat(formatMessageMarkdown(msg));
+  }
+
   private selectConversation(conv: OpenChatConversation) {
     this.selectedConversation = conv;
   }
@@ -397,6 +487,20 @@ export class SidePanel extends LitElement {
           (msg) => html`
             <div class="message ${msg.role}">
               ${msg.content.map((block) => this.renderContentBlock(block))}
+              ${msg.role === "assistant"
+                ? html`
+                    <div class="message-footer">
+                      <button
+                        class="paste-btn"
+                        ?disabled=${!this.isOnSupportedPage}
+                        title="Paste message into chat"
+                        @click=${() => this.pasteMessage(msg)}
+                      >
+                        ${pasteIcon}
+                      </button>
+                    </div>
+                  `
+                : ""}
             </div>
           `
         )}
@@ -457,25 +561,35 @@ export class SidePanel extends LitElement {
             <div class="conversation-list">
               ${this.filteredConversations.map(
                 (conv) => html`
-                  <div
-                    class="conversation-card"
-                    @click=${() => this.selectConversation(conv)}
-                  >
-                    <div class="conversation-title">${conv.title}</div>
-                    <div class="conversation-meta">
-                      <span class="platform-badge ${conv.source.platform}">
-                        ${conv.source.platform === "claude"
-                          ? claudeIcon
-                          : conv.source.platform === "chatgpt"
-                          ? html`<span class="platform-icon-wrap chatgpt"
-                              >${chatgptIcon}</span
-                            >`
-                          : ""}
-                        ${conv.source.platform}
-                      </span>
-                      <span>${conv.messages.length} messages</span>
-                      <span>${this.formatDate(conv.updatedAt)}</span>
+                  <div class="conversation-card-row">
+                    <div
+                      class="conversation-card"
+                      @click=${() => this.selectConversation(conv)}
+                    >
+                      <div class="conversation-title">${conv.title}</div>
+                      <div class="conversation-meta">
+                        <span class="platform-badge ${conv.source.platform}">
+                          ${conv.source.platform === "claude"
+                            ? claudeIcon
+                            : conv.source.platform === "chatgpt"
+                            ? html`<span class="platform-icon-wrap chatgpt"
+                                >${chatgptIcon}</span
+                              >`
+                            : ""}
+                          ${conv.source.platform}
+                        </span>
+                        <span>${conv.messages.length} messages</span>
+                        <span>${this.formatDate(conv.updatedAt)}</span>
+                      </div>
                     </div>
+                    <button
+                      class="paste-btn"
+                      ?disabled=${!this.isOnSupportedPage}
+                      title="Paste conversation into chat"
+                      @click=${(e: Event) => this.pasteConversation(e, conv)}
+                    >
+                      ${pasteIcon} Paste
+                    </button>
                   </div>
                 `
               )}
