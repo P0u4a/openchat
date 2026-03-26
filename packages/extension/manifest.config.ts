@@ -5,7 +5,7 @@ export default defineManifest({
   name: "OpenChat",
   version: "0.0.1",
   description: "Share conversations across AI chat UIs",
-  permissions: ["storage", "activeTab", "sidePanel"],
+  permissions: ["storage", "activeTab", "sidePanel", "tabs"],
   host_permissions: [
     "https://chatgpt.com/*",
     "https://claude.ai/*",
