@@ -5,6 +5,7 @@
  */
 
 import { CHATGPT_ORIGIN } from "../lib/constants.js";
+import { tryPasteChat } from "../utils/paste-chat.js";
 
 function injectInterceptor() {
   const parent = document.head || document.documentElement;
@@ -48,5 +49,14 @@ function relayToBackground() {
   });
 }
 
+function listenForPaste() {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === "openchat:paste-chat") {
+      sendResponse({ ok: tryPasteChat(message.text) });
+    }
+  });
+}
+
 relayToBackground();
 injectInterceptor();
+listenForPaste();
