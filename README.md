@@ -4,6 +4,9 @@
   <img width="128" height="128" alt="openchat logo" src="https://github.com/user-attachments/assets/d3f37dc0-eb81-4be8-b95f-50c5729661c6" />
 </p>
 
+<video src="https://github.com/user-attachments/assets/0e104172-2586-4b7c-b5f9-00b96da2e81c" width="320" height="240" controls></video>
+
+
 ### An open format for sharing conversation histories across different AI chat UIs.
 
 Just talk to your chat client as you would normally, OpenChat will sync the conversation in the background, letting you swap in and out of different clients while maintaining your entire conversation history.
@@ -58,8 +61,8 @@ codex mcp add openchat -- npx -y @p0u4a/openchat-mcp
 
 ## TODO
 
-- [ ] Paste conversation from sidepanel into chat UI
-- [ ] Support more content blocks
-- [ ] Resume existing conversation by pasting and indicate client switch in side panel UI
+- [ ] Allow paste conversation from sidepanel into chat UI
+- [ ] Support more content blocks (e.g. artifacts)
+- [ ] Allow for cross-provider conversations
 - [ ] Gemini Support?
 - [ ] Ollama Support?
