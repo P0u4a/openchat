@@ -61,8 +61,6 @@ codex mcp add openchat -- npx -y @p0u4a/openchat
 
 ## TODO
 
-- [ ] Allow paste conversation from sidepanel into chat UI
 - [ ] Support more content blocks (e.g. artifacts)
-- [ ] Allow for cross-provider conversations
 - [ ] Gemini Support?
 - [ ] Ollama Support?
