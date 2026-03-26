@@ -36,18 +36,18 @@ You're good to go! OpenChat will automatically intercept requests to `chatgpt.co
 
 If you want to pull conversations into your terminal agents, you can use the MCP server.
 
-The command to run the MCP server is `npx @p0u4a/openchat-mcp`. You can add this to your agent's config.
+The command to run the MCP server is `npx @p0u4a/openchat`. You can add this to your agent's config.
 
 #### For Claude Code
 
 ```
-claude mcp add --transport stdio openchat -- "npx @p0u4a/openchat-mcp" 
+claude mcp add --transport stdio openchat -- "npx @p0u4a/openchat" 
 ```
 
 #### For Codex
 
 ```
-codex mcp add openchat -- npx -y @p0u4a/openchat-mcp
+codex mcp add openchat -- npx -y @p0u4a/openchat
 ```
 
 ## Supported Platforms
