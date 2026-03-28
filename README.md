@@ -1,4 +1,4 @@
-# Openchat
+# OpenChat
 
 <p align="center">
   <img width="128" height="128" alt="openchat logo" src="https://github.com/user-attachments/assets/d3f37dc0-eb81-4be8-b95f-50c5729661c6" />
