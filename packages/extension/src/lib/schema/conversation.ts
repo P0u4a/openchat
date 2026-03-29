@@ -61,6 +61,30 @@ export const Attachment = Type.Object({
   content: Type.Optional(Type.String()),
 });
 
+export const Platform = Type.Union([
+  Type.Literal("chatgpt"),
+  Type.Literal("claude"),
+]);
+
+export const Source = Type.Object({
+  platform: Platform,
+  conversationId: Type.String(),
+  url: Type.String(),
+  model: Type.Optional(Type.String()),
+  previousConversations: Type.Optional(
+    Type.Array(
+      Type.Object({
+        platform: Platform,
+        conversationId: Type.String(),
+      })
+    )
+  ),
+});
+
+export const MessageMetadata = Type.Object({
+  originalPlatform: Type.Optional(Platform),
+});
+
 export const Message = Type.Object({
   id: Type.String(),
   role: Type.Union([
@@ -74,19 +98,7 @@ export const Message = Type.Object({
   parentId: Type.Optional(Type.String()),
   platformMessageId: Type.Optional(Type.String()),
   attachments: Type.Optional(Type.Array(Attachment)),
-});
-
-export const Platform = Type.Union([
-  Type.Literal("chatgpt"),
-  Type.Literal("claude"),
-  Type.Literal("gemini"),
-]);
-
-export const Source = Type.Object({
-  platform: Platform,
-  conversationId: Type.String(),
-  url: Type.String(),
-  model: Type.Optional(Type.String()),
+  metadata: Type.Optional(MessageMetadata),
 });
 
 export const Conversation = Type.Object({
@@ -96,7 +108,21 @@ export const Conversation = Type.Object({
   updatedAt: Type.String(),
   source: Source,
   messages: Type.Array(Message),
-  metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+  metadata: Type.Optional(
+    Type.Intersect([
+      Type.Record(Type.String(), Type.Unknown()),
+      Type.Object({
+        providerChanged: Type.Optional(Type.Boolean()),
+        lastProviderChange: Type.Optional(
+          Type.Object({
+            from: Platform,
+            to: Platform,
+            at: Type.String(),
+          })
+        ),
+      }),
+    ])
+  ),
 });
 
 export type OpenChatContentBlock = Static<typeof ContentBlock>;
@@ -104,3 +130,4 @@ export type OpenChatMessage = Static<typeof Message>;
 export type OpenChatConversation = Static<typeof Conversation>;
 export type OpenChatPlatform = Static<typeof Platform>;
 export type OpenChatAttachment = Static<typeof Attachment>;
+export type OpenChatMessageMetadata = Static<typeof MessageMetadata>;

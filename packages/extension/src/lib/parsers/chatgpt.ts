@@ -4,6 +4,7 @@ import type {
   OpenChatContentBlock,
   OpenChatMessage,
 } from "../schema/conversation.js";
+import { stripOpenChatRef } from "../../utils/conversation-markdown.js";
 
 interface ChatGPTMessageAuthor {
   role?: string;
@@ -153,7 +154,7 @@ function parseContentBlocks(
 
   return extractTextParts(message.content).map((text) => ({
     type: "text",
-    text,
+    text: stripOpenChatRef(text),
   }));
 }
 

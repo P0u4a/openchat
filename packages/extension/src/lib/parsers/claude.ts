@@ -3,6 +3,7 @@ import type {
   OpenChatMessage,
   OpenChatContentBlock,
 } from "../schema/conversation.js";
+import { stripOpenChatRef } from "../../utils/conversation-markdown.js";
 
 interface ClaudeContentBlock {
   type: "text" | "thinking";
@@ -52,13 +53,13 @@ function parseContentBlock(block: ClaudeContentBlock): OpenChatContentBlock {
   if (block.type === "thinking") {
     return {
       type: "thinking",
-      text: block.thinking ?? "",
+      text: stripOpenChatRef(block.thinking ?? ""),
     };
   }
 
   return {
     type: "text",
-    text: block.text ?? "",
+    text: stripOpenChatRef(block.text ?? ""),
   };
 }
 

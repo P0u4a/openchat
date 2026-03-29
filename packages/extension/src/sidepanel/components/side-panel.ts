@@ -315,6 +315,37 @@ export class SidePanel extends LitElement {
       font-size: var(--text-sm);
       margin: var(--space-1_5) 0;
     }
+
+    .provider-change-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-top: var(--space-1);
+    }
+
+    .provider-switch-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-2) 0;
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      border-top: 1px dashed var(--border);
+      border-bottom: 1px dashed var(--border);
+      margin: var(--space-2) 0;
+    }
+
+    .message[data-platform="chatgpt"] {
+      border-left: 2px solid var(--chatgpt-color);
+      padding-left: calc(var(--space-2_5) - 2px);
+    }
+
+    .message[data-platform="claude"] {
+      border-left: 2px solid var(--claude-color);
+      padding-left: calc(var(--space-2_5) - 2px);
+    }
   `;
 
   @state()
@@ -436,11 +467,11 @@ export class SidePanel extends LitElement {
 
   private pasteConversation(e: Event, conv: OpenChatConversation) {
     e.stopPropagation();
-    this.pasteToChat(formatConversationMarkdown(conv));
+    this.pasteToChat(formatConversationMarkdown(conv, true));
   }
 
-  private pasteMessage(msg: OpenChatMessage) {
-    this.pasteToChat(formatMessageMarkdown(msg));
+  private pasteMessage(msg: OpenChatMessage, convId: string) {
+    this.pasteToChat(formatMessageMarkdown(msg, convId));
   }
 
   private selectConversation(conv: OpenChatConversation) {
@@ -477,15 +508,29 @@ export class SidePanel extends LitElement {
 
   private renderChatView() {
     const conv = this.selectedConversation!;
+    const messages = conv.messages;
+
     return html`
       <div class="header">
         <button class="back-btn" @click=${this.goBack}>${backArrow}</button>
         <h1>${conv.title}</h1>
       </div>
       <div class="chat-view">
-        ${conv.messages.map(
-          (msg) => html`
-            <div class="message ${msg.role}">
+        ${messages.map((msg, idx) => {
+          const msgPlatform = msg.metadata?.originalPlatform;
+          const prevMsg = idx > 0 ? messages[idx - 1] : null;
+          const prevPlatform = prevMsg?.metadata?.originalPlatform;
+          const isProviderSwitch = prevPlatform && msgPlatform && prevPlatform !== msgPlatform;
+
+          return html`
+            ${isProviderSwitch
+              ? html`
+                  <div class="provider-switch-indicator">
+                    ↔ Switched from ${prevPlatform} to ${msgPlatform}
+                  </div>
+                `
+              : ""}
+            <div class="message ${msg.role}" data-platform="${msgPlatform ?? conv.source.platform}">
               ${msg.content.map((block) => this.renderContentBlock(block))}
               ${msg.role === "assistant"
                 ? html`
@@ -493,16 +538,17 @@ export class SidePanel extends LitElement {
                       <button
                         class="paste-btn"
                         ?disabled=${!this.isOnSupportedPage}
-                        title="Paste message into chat"
-                        @click=${() => this.pasteMessage(msg)}
-                      >
-                        ${pasteIcon}
-                      </button>
-                    </div>
-                  `
-                : ""}
-            </div>
-          `
+                          title="Paste message into chat"
+                          @click=${() => this.pasteMessage(msg, conv.id)}
+                        >
+                          ${pasteIcon}
+                        </button>
+                      </div>
+                    `
+                  : ""}
+              </div>
+            `;
+          }
         )}
       </div>
     `;
@@ -581,6 +627,14 @@ export class SidePanel extends LitElement {
                         <span>${conv.messages.length} messages</span>
                         <span>${this.formatDate(conv.updatedAt)}</span>
                       </div>
+                      ${conv.metadata?.lastProviderChange &&
+                        conv.metadata.lastProviderChange.from !== conv.metadata.lastProviderChange.to
+                        ? html`
+                            <div class="provider-change-badge">
+                              ↔ from ${conv.metadata.lastProviderChange.from}
+                            </div>
+                          `
+                        : ""}
                     </div>
                     <button
                       class="paste-btn"

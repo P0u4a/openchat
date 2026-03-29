@@ -1,7 +1,22 @@
-import { parseClaudeConversation } from "./lib/parsers/claude.js";
-import { parseChatGPTConversation } from "./lib/parsers/chatgpt.js";
-import type { OpenChatConversation } from "./lib/schema/conversation.js";
-import { upsertConversation, getAllConversations } from "./lib/storage/db.js";
+import {
+  parseClaudeConversation,
+  type ClaudeConversationResponse,
+} from "./lib/parsers/claude.js";
+import {
+  parseChatGPTConversation,
+  type ChatGPTConversationResponse,
+} from "./lib/parsers/chatgpt.js";
+import type {
+  OpenChatConversation,
+  OpenChatPlatform,
+} from "./lib/schema/conversation.js";
+import {
+  upsertConversation,
+  getAllConversations,
+  getConversation,
+} from "./lib/storage/db.js";
+
+const OPENCHAT_REF_REGEX = /\[openchat:ref:([^\]]+)\]/;
 
 const OPENCHAT_BRIDGE_ORIGIN = "http://127.0.0.1:27124";
 let hasLoggedBridgeFailure = false;
@@ -41,31 +56,169 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 });
 
+function extractSourceRef(platform: string, data: unknown): string | null {
+  if (platform === "claude") {
+    return extractRefFromClaudeData(data as ClaudeConversationResponse);
+  }
+  if (platform === "chatgpt") {
+    return extractRefFromChatGPTData(data as ChatGPTConversationResponse);
+  }
+  return null;
+}
+
+function extractRefFromClaudeData(
+  data: ClaudeConversationResponse
+): string | null {
+  for (const msg of data.chat_messages) {
+    if (msg.sender === "human") {
+      const match = msg.text.match(OPENCHAT_REF_REGEX);
+      if (match) return match[1];
+    }
+  }
+  return null;
+}
+
+function extractRefFromChatGPTData(
+  data: ChatGPTConversationResponse
+): string | null {
+  for (const node of Object.values(data.mapping)) {
+    if (node.message?.author?.role === "user") {
+      const text = extractTextFromChatGPTNode(node);
+      const match = text.match(OPENCHAT_REF_REGEX);
+      if (match) return match[1];
+    }
+  }
+  return null;
+}
+
+type ChatGPTNode = {
+  message?: {
+    content?: {
+      parts?: unknown[];
+      text?: string;
+    } | null;
+  } | null;
+};
+
+function extractTextFromChatGPTNode(node: ChatGPTNode): string {
+  const content = node.message?.content;
+  if (!content) return "";
+
+  if (Array.isArray(content.parts)) {
+    return content.parts
+      .flatMap((p) =>
+        typeof p === "string"
+          ? [p]
+          : typeof p === "object" && p !== null && "text" in p
+          ? [String((p as { text: unknown }).text)]
+          : []
+      )
+      .join("\n");
+  }
+
+  if (typeof content.text === "string") {
+    return content.text;
+  }
+
+  return "";
+}
+
 async function handleCapturedConversation(message: {
   platform: string;
   url: string;
   data: unknown;
 }) {
   try {
+    let conversation: OpenChatConversation;
+
     if (message.platform === "claude") {
-      const conversation = parseClaudeConversation(
+      conversation = parseClaudeConversation(
         message.data as Parameters<typeof parseClaudeConversation>[0],
         message.url
       );
-      await handleSavedConversation(conversation);
-      return;
-    }
-
-    if (message.platform === "chatgpt") {
-      const conversation = parseChatGPTConversation(
+    } else if (message.platform === "chatgpt") {
+      conversation = parseChatGPTConversation(
         message.data as Parameters<typeof parseChatGPTConversation>[0],
         message.url
       );
-      await handleSavedConversation(conversation);
+    } else {
+      return;
     }
+
+    const sourceConvId = extractSourceRef(message.platform, message.data);
+
+    if (sourceConvId) {
+      const existing = await getConversation(sourceConvId);
+      if (existing) {
+        await mergeConversations(existing, conversation);
+        return;
+      }
+      console.log(`[OpenChat] Source conversation not found: ${sourceConvId}`);
+    }
+
+    await handleSavedConversation(conversation);
   } catch (err) {
     console.error("[OpenChat] Failed to save conversation:", err);
   }
+}
+
+async function mergeConversations(
+  existing: OpenChatConversation,
+  newPortion: OpenChatConversation
+): Promise<void> {
+  const lastMessage = existing.messages[existing.messages.length - 1];
+  const previousPlatform = existing.source.platform as OpenChatPlatform;
+
+  const merged: OpenChatConversation = {
+    ...existing,
+    updatedAt: newPortion.updatedAt,
+    source: {
+      ...existing.source,
+      platform: newPortion.source.platform,
+      conversationId: newPortion.source.conversationId,
+      url: newPortion.source.url,
+      model: newPortion.source.model,
+      previousConversations: [
+        ...(existing.source.previousConversations ?? []),
+        {
+          platform: previousPlatform,
+          conversationId: existing.source.conversationId,
+        },
+      ],
+    },
+    metadata: {
+      ...existing.metadata,
+      providerChanged: true,
+      lastProviderChange: {
+        from: previousPlatform,
+        to: newPortion.source.platform,
+        at: newPortion.updatedAt,
+      },
+    },
+    messages: [
+      ...existing.messages,
+      ...newPortion.messages.map((msg, idx) => ({
+        ...msg,
+        id: crypto.randomUUID(),
+        parentId: idx === 0 && lastMessage ? lastMessage.id : undefined,
+        metadata: {
+          ...msg.metadata,
+          originalPlatform: newPortion.source.platform as OpenChatPlatform,
+        },
+      })),
+    ],
+  };
+
+  await upsertConversation(merged);
+
+  console.log(
+    `[OpenChat] Merged conversation: "${existing.title}" (${previousPlatform} → ${newPortion.source.platform})`
+  );
+
+  await Promise.allSettled([
+    notifyConversationUpdated(),
+    upsertConversationInBridge(merged),
+  ]);
 }
 
 async function handleSavedConversation(conversation: OpenChatConversation) {
