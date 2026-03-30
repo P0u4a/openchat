@@ -6,9 +6,24 @@ import type {
 
 export const OPENCHAT_REF_PREFIX = "[openchat:ref:";
 export const OPENCHAT_REF_SUFFIX = "]";
+export const PASTE_START_MARKER = "<prev_conversation>";
+export const PASTE_END_MARKER = "</prev_conversation>";
 
 export function stripOpenChatRef(text: string): string {
-  return text.replace(/\[openchat:ref:[^\]]+\]\n*/g, "").trim();
+  return text
+    .replace(/\[openchat:ref:[^\]]+\]\n*/g, "")
+    .replace(
+      new RegExp(
+        `${escapeRegex(PASTE_START_MARKER)}[\\s\\S]*?${escapeRegex(PASTE_END_MARKER)}`,
+        "g"
+      ),
+      ""
+    )
+    .trim();
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function renderContentBlock(block: OpenChatContentBlock): string {
@@ -46,7 +61,7 @@ export function formatMessageMarkdown(
     const ref = lastMessageId
       ? `${OPENCHAT_REF_PREFIX}${conversationId}:${lastMessageId}${OPENCHAT_REF_SUFFIX}`
       : `${OPENCHAT_REF_PREFIX}${conversationId}${OPENCHAT_REF_SUFFIX}`;
-    return `${ref}\n\n${content}`;
+    return `${PASTE_START_MARKER}\n${ref}\n\n${content}\n${PASTE_END_MARKER}`;
   }
 
   return content;
@@ -75,5 +90,11 @@ export function formatConversationMarkdown(
     }
   }
 
-  return lines.join("\n").trimEnd();
+  const content = lines.join("\n").trimEnd();
+
+  if (includeRef) {
+    return `${PASTE_START_MARKER}\n${content}\n${PASTE_END_MARKER}`;
+  }
+
+  return content;
 }
