@@ -434,7 +434,24 @@ async function mergeConversations(
 }
 
 async function handleSavedConversation(conversation: OpenChatConversation) {
-  await upsertConversation(conversation);
+  const messagesWithoutRefs = conversation.messages.map((msg) => {
+    if (msg.role !== "user") return msg;
+    const strippedContent = msg.content.map((block) => {
+      if (block.type !== "text") return block;
+      return {
+        ...block,
+        text: stripOpenChatRef(block.text),
+      };
+    });
+    return { ...msg, content: strippedContent };
+  });
+
+  const conversationWithoutRefs = {
+    ...conversation,
+    messages: messagesWithoutRefs,
+  };
+
+  await upsertConversation(conversationWithoutRefs);
   console.log(
     `[OpenChat] Saved ${conversation.source.platform} conversation: "${conversation.title}" (${conversation.messages.length} messages)`
   );
