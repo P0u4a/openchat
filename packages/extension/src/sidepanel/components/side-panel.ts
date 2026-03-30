@@ -16,6 +16,7 @@ import { renderMarkdown } from "../../utils/markdown.js";
 import {
   formatConversationMarkdown,
   formatMessageMarkdown,
+  PASTE_REPLY_LABEL,
 } from "../../utils/conversation-markdown.js";
 import { pasteIcon } from "./icons/paste-icon.js";
 import { isSupportedPage } from "../../utils/supported-page.js";
@@ -316,6 +317,13 @@ export class SidePanel extends LitElement {
       margin: var(--space-1_5) 0;
     }
 
+    .message .reply-label {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-bottom: var(--space-1);
+      white-space: pre-line;
+    }
+
     .provider-change-badge {
       display: inline-flex;
       align-items: center;
@@ -547,6 +555,18 @@ export class SidePanel extends LitElement {
       case "thinking":
         return html`<div class="thinking-block">${block.text}</div>`;
       case "text":
+        if (block.text.startsWith(PASTE_REPLY_LABEL)) {
+          const restText = block.text.slice(PASTE_REPLY_LABEL.length);
+          return html`
+            <div class="reply-label">${PASTE_REPLY_LABEL}</div>
+            ${until(
+              renderMarkdown(restText).then(
+                (content) => html`<span>${unsafeHTML(content)}</span>`
+              ),
+              html`<span>${restText}</span>`
+            )}
+          `;
+        }
         return until(
           renderMarkdown(block.text).then(
             (content) => html`<span>${unsafeHTML(content)}</span>`
@@ -708,14 +728,14 @@ export class SidePanel extends LitElement {
                       <div class="conversation-title">${conv.title}</div>
                       <div class="conversation-meta">
                         <span class="platform-badge ${conv.source.platform}">
-                          ${conv.source.platform === "claude"
+                          ${(conv.metadata?.lastProviderChange?.to ?? conv.source.platform) === "claude"
                             ? claudeIcon
-                            : conv.source.platform === "chatgpt"
+                            : (conv.metadata?.lastProviderChange?.to ?? conv.source.platform) === "chatgpt"
                               ? html`<span class="platform-icon-wrap chatgpt"
                                   >${chatgptIcon}</span
                                 >`
                               : ""}
-                          ${conv.source.platform}
+                          ${conv.metadata?.lastProviderChange?.to ?? conv.source.platform}
                         </span>
                         <span>${conv.messages.length} messages</span>
                         <span>${this.formatDate(conv.updatedAt)}</span>
