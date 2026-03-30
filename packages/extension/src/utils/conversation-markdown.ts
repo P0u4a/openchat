@@ -34,7 +34,8 @@ function renderContentBlock(block: OpenChatContentBlock): string {
 
 export function formatMessageMarkdown(
   message: OpenChatMessage,
-  conversationId?: string
+  conversationId?: string,
+  lastMessageId?: string
 ): string {
   const content = message.content
     .map(renderContentBlock)
@@ -42,7 +43,10 @@ export function formatMessageMarkdown(
     .join("\n\n");
 
   if (conversationId) {
-    return `${OPENCHAT_REF_PREFIX}${conversationId}${OPENCHAT_REF_SUFFIX}\n\n${content}`;
+    const ref = lastMessageId
+      ? `${OPENCHAT_REF_PREFIX}${conversationId}:${lastMessageId}${OPENCHAT_REF_SUFFIX}`
+      : `${OPENCHAT_REF_PREFIX}${conversationId}${OPENCHAT_REF_SUFFIX}`;
+    return `${ref}\n\n${content}`;
   }
 
   return content;
@@ -50,12 +54,14 @@ export function formatMessageMarkdown(
 
 export function formatConversationMarkdown(
   conversation: OpenChatConversation,
-  includeRef = true
+  includeRef = true,
+  lastMessageId?: string
 ): string {
   const lines: string[] = [];
 
   if (includeRef) {
-    lines.push(`${OPENCHAT_REF_PREFIX}${conversation.id}${OPENCHAT_REF_SUFFIX}`, "");
+    const msgIdPart = lastMessageId ? `:${lastMessageId}` : "";
+    lines.push(`${OPENCHAT_REF_PREFIX}${conversation.id}${msgIdPart}${OPENCHAT_REF_SUFFIX}`, "");
   }
 
   lines.push(`# ${conversation.title || "Untitled"}`, "");

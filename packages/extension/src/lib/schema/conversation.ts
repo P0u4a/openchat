@@ -81,6 +81,19 @@ export const Source = Type.Object({
   ),
 });
 
+export const BranchEntry = Type.Object({
+  conversationId: Type.String(),
+  atMessageId: Type.String(),
+  title: Type.String(),
+  createdAt: Type.String(),
+});
+
+export const BranchInfo = Type.Object({
+  branchedFromId: Type.Optional(Type.String()),
+  branchPointMessageId: Type.Optional(Type.String()),
+  branches: Type.Optional(Type.Array(BranchEntry)),
+});
+
 export const MessageMetadata = Type.Object({
   originalPlatform: Type.Optional(Platform),
 });
@@ -120,6 +133,7 @@ export const Conversation = Type.Object({
             at: Type.String(),
           })
         ),
+        branchInfo: Type.Optional(BranchInfo),
       }),
     ])
   ),
@@ -131,3 +145,5 @@ export type OpenChatConversation = Static<typeof Conversation>;
 export type OpenChatPlatform = Static<typeof Platform>;
 export type OpenChatAttachment = Static<typeof Attachment>;
 export type OpenChatMessageMetadata = Static<typeof MessageMetadata>;
+export type OpenChatBranchInfo = Static<typeof BranchInfo>;
+export type OpenChatBranchEntry = Static<typeof BranchEntry>;

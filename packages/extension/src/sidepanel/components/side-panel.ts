@@ -346,6 +346,35 @@ export class SidePanel extends LitElement {
       border-left: 2px solid var(--claude-color);
       padding-left: calc(var(--space-2_5) - 2px);
     }
+
+    .branch-banner {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      padding: var(--space-2) var(--space-2_5);
+      margin-bottom: var(--space-2);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+    }
+
+    .branch-indicator {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      padding: var(--space-1_5) 0;
+      border-left: 2px dashed var(--border);
+      padding-left: var(--space-2_5);
+      margin: var(--space-1) 0;
+    }
+
+    .branch-link {
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .branch-link:hover {
+      opacity: 0.8;
+    }
   `;
 
   @state()
@@ -368,6 +397,9 @@ export class SidePanel extends LitElement {
 
   @state()
   private isOnSupportedPage = false;
+
+  @state()
+  private branchSourceTitle: string | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -467,19 +499,47 @@ export class SidePanel extends LitElement {
 
   private pasteConversation(e: Event, conv: OpenChatConversation) {
     e.stopPropagation();
-    this.pasteToChat(formatConversationMarkdown(conv, true));
+    const lastMsgId = conv.messages.at(-1)?.id;
+    this.pasteToChat(formatConversationMarkdown(conv, true, lastMsgId));
   }
 
   private pasteMessage(msg: OpenChatMessage, convId: string) {
-    this.pasteToChat(formatMessageMarkdown(msg, convId));
+    const conv = this.selectedConversation;
+    const lastMsgId = conv?.messages.at(-1)?.id;
+    this.pasteToChat(formatMessageMarkdown(msg, convId, lastMsgId));
   }
 
   private selectConversation(conv: OpenChatConversation) {
     this.selectedConversation = conv;
+    this.branchSourceTitle = null;
+    if (conv.metadata?.branchInfo?.branchedFromId) {
+      this.fetchBranchSourceTitle(conv.metadata.branchInfo.branchedFromId);
+    }
   }
 
   private goBack() {
     this.selectedConversation = null;
+    this.branchSourceTitle = null;
+  }
+
+  private async navigateToBranch(conversationId: string) {
+    const response = await chrome.runtime.sendMessage({
+      type: "openchat:get-conversation",
+      id: conversationId,
+    });
+    if (response?.conversation) {
+      this.selectConversation(response.conversation);
+    }
+  }
+
+  private async fetchBranchSourceTitle(conversationId: string) {
+    const response = await chrome.runtime.sendMessage({
+      type: "openchat:get-conversation",
+      id: conversationId,
+    });
+    if (response?.conversation) {
+      this.branchSourceTitle = response.conversation.title;
+    }
   }
 
   private renderContentBlock(block: OpenChatContentBlock) {
@@ -509,18 +569,37 @@ export class SidePanel extends LitElement {
   private renderChatView() {
     const conv = this.selectedConversation!;
     const messages = conv.messages;
+    const branchInfo = conv.metadata?.branchInfo;
+    const branches = branchInfo?.branches ?? [];
 
     return html`
       <div class="header">
         <button class="back-btn" @click=${this.goBack}>${backArrow}</button>
         <h1>${conv.title}</h1>
       </div>
+      ${branchInfo?.branchedFromId
+        ? html`
+            <div class="branch-banner">
+              ↩ Branched from
+              <a
+                class="branch-link"
+                @click=${() =>
+                  this.navigateToBranch(branchInfo.branchedFromId!)}
+                >${this.branchSourceTitle ?? "source conversation"}</a
+              >
+            </div>
+          `
+        : ""}
       <div class="chat-view">
         ${messages.map((msg, idx) => {
           const msgPlatform = msg.metadata?.originalPlatform;
           const prevMsg = idx > 0 ? messages[idx - 1] : null;
           const prevPlatform = prevMsg?.metadata?.originalPlatform;
-          const isProviderSwitch = prevPlatform && msgPlatform && prevPlatform !== msgPlatform;
+          const isProviderSwitch =
+            prevPlatform && msgPlatform && prevPlatform !== msgPlatform;
+          const branchesAtMsg = branches.filter(
+            (b) => b.atMessageId === msg.id
+          );
 
           return html`
             ${isProviderSwitch
@@ -530,7 +609,10 @@ export class SidePanel extends LitElement {
                   </div>
                 `
               : ""}
-            <div class="message ${msg.role}" data-platform="${msgPlatform ?? conv.source.platform}">
+            <div
+              class="message ${msg.role}"
+              data-platform="${msgPlatform ?? conv.source.platform}"
+            >
               ${msg.content.map((block) => this.renderContentBlock(block))}
               ${msg.role === "assistant"
                 ? html`
@@ -538,18 +620,29 @@ export class SidePanel extends LitElement {
                       <button
                         class="paste-btn"
                         ?disabled=${!this.isOnSupportedPage}
-                          title="Paste message into chat"
-                          @click=${() => this.pasteMessage(msg, conv.id)}
-                        >
-                          ${pasteIcon}
-                        </button>
-                      </div>
-                    `
-                  : ""}
-              </div>
-            `;
-          }
-        )}
+                        title="Paste message into chat"
+                        @click=${() => this.pasteMessage(msg, conv.id)}
+                      >
+                        ${pasteIcon}
+                      </button>
+                    </div>
+                  `
+                : ""}
+            </div>
+            ${branchesAtMsg.map(
+              (branch) => html`
+                <div class="branch-indicator">
+                  ↪ Branched into
+                  <a
+                    class="branch-link"
+                    @click=${() => this.navigateToBranch(branch.conversationId)}
+                    >${branch.title}</a
+                  >
+                </div>
+              `
+            )}
+          `;
+        })}
       </div>
     `;
   }
@@ -618,22 +711,37 @@ export class SidePanel extends LitElement {
                           ${conv.source.platform === "claude"
                             ? claudeIcon
                             : conv.source.platform === "chatgpt"
-                            ? html`<span class="platform-icon-wrap chatgpt"
-                                >${chatgptIcon}</span
-                              >`
-                            : ""}
+                              ? html`<span class="platform-icon-wrap chatgpt"
+                                  >${chatgptIcon}</span
+                                >`
+                              : ""}
                           ${conv.source.platform}
                         </span>
                         <span>${conv.messages.length} messages</span>
                         <span>${this.formatDate(conv.updatedAt)}</span>
                       </div>
                       ${conv.metadata?.lastProviderChange &&
-                        conv.metadata.lastProviderChange.from !== conv.metadata.lastProviderChange.to
+                      conv.metadata.lastProviderChange.from !==
+                        conv.metadata.lastProviderChange.to
                         ? html`
                             <div class="provider-change-badge">
                               ↔ from ${conv.metadata.lastProviderChange.from}
                             </div>
                           `
+                        : ""}
+                      ${conv.metadata?.branchInfo?.branchedFromId
+                        ? html`<div class="provider-change-badge">
+                            ↩ branch
+                          </div>`
+                        : ""}
+                      ${(conv.metadata?.branchInfo?.branches?.length ?? 0) > 0
+                        ? html`<div class="provider-change-badge">
+                            ↪ ${conv.metadata!.branchInfo!.branches!.length}
+                            branch${(conv.metadata?.branchInfo?.branches
+                              ?.length ?? 0) > 1
+                              ? "es"
+                              : ""}
+                          </div>`
                         : ""}
                     </div>
                     <button
