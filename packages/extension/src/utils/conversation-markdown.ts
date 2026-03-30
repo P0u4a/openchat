@@ -8,16 +8,21 @@ export const OPENCHAT_REF_PREFIX = "[openchat:ref:";
 export const OPENCHAT_REF_SUFFIX = "]";
 export const PASTE_START_MARKER = "<prev_conversation>";
 export const PASTE_END_MARKER = "</prev_conversation>";
+export const PASTE_REPLY_LABEL = "↩ Reply to previous conversation:\n";
 
 export function stripOpenChatRef(text: string): string {
   return text
     .replace(/\[openchat:ref:[^\]]+\]\n*/g, "")
     .replace(
       new RegExp(
-        `${escapeRegex(PASTE_START_MARKER)}[\\s\\S]*?${escapeRegex(PASTE_END_MARKER)}`,
+        `${escapeRegex(PASTE_START_MARKER)}\n*([\\s\\S]*?)\n*${escapeRegex(PASTE_END_MARKER)}`,
         "g"
       ),
-      ""
+      (_, pastedContent) => {
+        const snippet = pastedContent.slice(0, 100).replace(/\n/g, " ").trim();
+        const ellipsis = pastedContent.length > 100 ? "..." : "";
+        return `${PASTE_REPLY_LABEL}> ${snippet}${ellipsis}`;
+      }
     )
     .trim();
 }
