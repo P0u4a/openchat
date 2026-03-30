@@ -337,12 +337,12 @@ export class SidePanel extends LitElement {
       margin: var(--space-2) 0;
     }
 
-    .message[data-platform="chatgpt"] {
+    .message.assistant[data-platform="chatgpt"] {
       border-left: 2px solid var(--chatgpt-color);
       padding-left: calc(var(--space-2_5) - 2px);
     }
 
-    .message[data-platform="claude"] {
+    .message.assistant[data-platform="claude"] {
       border-left: 2px solid var(--claude-color);
       padding-left: calc(var(--space-2_5) - 2px);
     }
