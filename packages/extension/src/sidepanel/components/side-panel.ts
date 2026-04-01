@@ -324,6 +324,12 @@ export class SidePanel extends LitElement {
       white-space: pre-line;
     }
 
+    .message .reply-snippet {
+      font-size: var(--text-2xs, 0.65rem);
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
     .provider-change-badge {
       display: inline-flex;
       align-items: center;
@@ -559,12 +565,14 @@ export class SidePanel extends LitElement {
           const restText = block.text.slice(PASTE_REPLY_LABEL.length);
           return html`
             <div class="reply-label">${PASTE_REPLY_LABEL}</div>
-            ${until(
-              renderMarkdown(restText).then(
-                (content) => html`<span>${unsafeHTML(content)}</span>`
-              ),
-              html`<span>${restText}</span>`
-            )}
+            <div class="reply-snippet">
+              ${until(
+                renderMarkdown(restText).then(
+                  (content) => html`<span>${unsafeHTML(content)}</span>`
+                ),
+                html`<span>${restText}</span>`
+              )}
+            </div>
           `;
         }
         return until(
