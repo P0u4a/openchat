@@ -19,6 +19,7 @@ import {
   PASTE_REPLY_LABEL,
 } from "../../utils/conversation-markdown.js";
 import { pasteIcon } from "./icons/paste-icon.js";
+import { downloadIcon } from "./icons/download-icon.js";
 import { isSupportedPage } from "../../utils/supported-page.js";
 
 @customElement("oc-sidepanel")
@@ -523,6 +524,28 @@ export class SidePanel extends LitElement {
     this.pasteToChat(formatMessageMarkdown(msg, convId, lastMsgId));
   }
 
+  private downloadJson(data: unknown, filename: string) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private exportConversation(e: Event, conv: OpenChatConversation) {
+    e.stopPropagation();
+    const slug = conv.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
+    this.downloadJson(conv, `openchat-${slug}.json`);
+  }
+
+  private exportAllConversations() {
+    this.downloadJson(this.conversations, "openchat-conversations.json");
+  }
+
   private selectConversation(conv: OpenChatConversation) {
     this.selectedConversation = conv;
     this.branchSourceTitle = null;
@@ -604,6 +627,13 @@ export class SidePanel extends LitElement {
       <div class="header">
         <button class="back-btn" @click=${this.goBack}>${backArrow}</button>
         <h1>${conv.title}</h1>
+        <button
+          class="paste-btn"
+          title="Export conversation as JSON"
+          @click=${(e: Event) => this.exportConversation(e, conv)}
+        >
+          ${downloadIcon}
+        </button>
       </div>
       ${branchInfo?.branchedFromId
         ? html`
@@ -709,6 +739,17 @@ export class SidePanel extends LitElement {
     return html`
       <div class="header">
         <h1>OpenChat</h1>
+        ${this.conversations.length > 0
+          ? html`
+              <button
+                class="paste-btn"
+                title="Export all conversations as JSON"
+                @click=${this.exportAllConversations}
+              >
+                ${downloadIcon}
+              </button>
+            `
+          : ""}
       </div>
       ${this.renderFilters()}
       ${this.filteredConversations.length === 0
@@ -772,14 +813,23 @@ export class SidePanel extends LitElement {
                           </div>`
                         : ""}
                     </div>
-                    <button
-                      class="paste-btn"
-                      ?disabled=${!this.isOnSupportedPage}
-                      title="Paste conversation into chat"
-                      @click=${(e: Event) => this.pasteConversation(e, conv)}
-                    >
-                      ${pasteIcon} Paste
-                    </button>
+                    <div style="display:flex;gap:var(--space-2)">
+                      <button
+                        class="paste-btn"
+                        ?disabled=${!this.isOnSupportedPage}
+                        title="Paste conversation into chat"
+                        @click=${(e: Event) => this.pasteConversation(e, conv)}
+                      >
+                        ${pasteIcon} Paste
+                      </button>
+                      <button
+                        class="paste-btn"
+                        title="Export conversation as JSON"
+                        @click=${(e: Event) => this.exportConversation(e, conv)}
+                      >
+                        ${downloadIcon} Export
+                      </button>
+                    </div>
                   </div>
                 `
               )}
