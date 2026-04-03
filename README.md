@@ -61,6 +61,6 @@ codex mcp add openchat -- npx -y @p0u4a/openchat
 
 ## TODO
 
-- [ ] Support more content blocks (e.g. artifacts)
+- [ ] Configurable Sync storage
 - [ ] Gemini Support?
 - [ ] Ollama Support?
