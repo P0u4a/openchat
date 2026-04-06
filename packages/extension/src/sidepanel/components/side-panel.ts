@@ -308,6 +308,34 @@ export class SidePanel extends LitElement {
       margin-top: var(--space-1_5);
     }
 
+    .message.assistant {
+      position: relative;
+      padding-right: var(--space-3);
+    }
+
+    .provider-logo {
+      position: absolute;
+      top: var(--space-1);
+      right: var(--space-1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .provider-logo svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .provider-logo.chatgpt svg {
+      background: white;
+      border-radius: 50%;
+    }
+
     .message pre {
       background: oklch(20% 0.005 286);
       color: oklch(90% 0.005 286);
@@ -352,15 +380,7 @@ export class SidePanel extends LitElement {
       margin: var(--space-2) 0;
     }
 
-    .message.assistant[data-platform="chatgpt"] {
-      border-left: 2px solid var(--chatgpt-color);
-      padding-left: calc(var(--space-2_5) - 2px);
-    }
 
-    .message.assistant[data-platform="claude"] {
-      border-left: 2px solid var(--claude-color);
-      padding-left: calc(var(--space-2_5) - 2px);
-    }
 
     .branch-banner {
       font-size: var(--text-xs);
@@ -671,6 +691,15 @@ export class SidePanel extends LitElement {
               class="message ${msg.role}"
               data-platform="${msgPlatform ?? conv.source.platform}"
             >
+              ${msg.role === "assistant"
+                ? html`
+                    <div class="provider-logo ${msgPlatform ?? conv.source.platform}">
+                      ${(msgPlatform ?? conv.source.platform) === "claude"
+                        ? claudeIcon
+                        : chatgptIcon}
+                    </div>
+                  `
+                : ""}
               ${msg.content.map((block) => this.renderContentBlock(block))}
               ${msg.role === "assistant"
                 ? html`
