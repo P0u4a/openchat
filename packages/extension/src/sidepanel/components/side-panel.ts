@@ -258,6 +258,8 @@ export class SidePanel extends LitElement {
       align-self: flex-start;
       background: transparent;
       border-bottom-left-radius: var(--radius-sm);
+      display: flex;
+      align-items: flex-start;
     }
 
     .thinking-block {
@@ -308,32 +310,40 @@ export class SidePanel extends LitElement {
       margin-top: var(--space-1_5);
     }
 
-    .message.assistant {
-      position: relative;
-      padding-right: var(--space-3);
-    }
-
     .provider-logo {
-      position: absolute;
-      top: var(--space-1);
-      right: var(--space-1);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 20px;
-      height: 20px;
+      width: 16px;
+      height: 16px;
       border-radius: 4px;
       overflow: hidden;
+      flex-shrink: 0;
+      margin-right: var(--space-2);
+    }
+
+    .message.assistant {
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .message.assistant .message-content {
+      flex: 1;
     }
 
     .provider-logo svg {
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
     }
 
-    .provider-logo.chatgpt svg {
-      background: white;
-      border-radius: 50%;
+    .provider-logo.chatgpt {
+      background: oklch(100% 0 0);
+      border-radius: 999px;
+      padding: 1px;
+    }
+
+    .provider-logo.claude svg {
+      background: transparent;
     }
 
     .message pre {
@@ -678,6 +688,7 @@ export class SidePanel extends LitElement {
           const branchesAtMsg = branches.filter(
             (b) => b.atMessageId === msg.id
           );
+          const effectiveProvider = msgPlatform ?? conv.source.platform;
 
           return html`
             ${isProviderSwitch
@@ -689,32 +700,32 @@ export class SidePanel extends LitElement {
               : ""}
             <div
               class="message ${msg.role}"
-              data-platform="${msgPlatform ?? conv.source.platform}"
+              data-platform="${effectiveProvider}"
             >
               ${msg.role === "assistant"
                 ? html`
-                    <div class="provider-logo ${msgPlatform ?? conv.source.platform}">
-                      ${(msgPlatform ?? conv.source.platform) === "claude"
-                        ? claudeIcon
-                        : chatgptIcon}
+                    <div class="provider-logo ${effectiveProvider}">
+                      ${effectiveProvider === "claude" ? claudeIcon : chatgptIcon}
                     </div>
                   `
                 : ""}
-              ${msg.content.map((block) => this.renderContentBlock(block))}
-              ${msg.role === "assistant"
-                ? html`
-                    <div class="message-footer">
-                      <button
-                        class="paste-btn"
-                        ?disabled=${!this.isOnSupportedPage}
-                        title="Paste message into chat"
-                        @click=${() => this.pasteMessage(msg, conv.id)}
-                      >
-                        ${pasteIcon}
-                      </button>
-                    </div>
-                  `
-                : ""}
+              <div class="message-content">
+                ${msg.content.map((block) => this.renderContentBlock(block))}
+                ${msg.role === "assistant"
+                  ? html`
+                      <div class="message-footer">
+                        <button
+                          class="paste-btn"
+                          ?disabled=${!this.isOnSupportedPage}
+                          title="Paste message into chat"
+                          @click=${() => this.pasteMessage(msg, conv.id)}
+                        >
+                          ${pasteIcon}
+                        </button>
+                      </div>
+                    `
+                  : ""}
+              </div>
             </div>
             ${branchesAtMsg.map(
               (branch) => html`
@@ -818,15 +829,6 @@ export class SidePanel extends LitElement {
                         <span>${conv.messages.length} messages</span>
                         <span>${this.formatDate(conv.updatedAt)}</span>
                       </div>
-                      ${conv.metadata?.lastProviderChange &&
-                      conv.metadata.lastProviderChange.from !==
-                        conv.metadata.lastProviderChange.to
-                        ? html`
-                            <div class="provider-change-badge">
-                              ↔ from ${conv.metadata.lastProviderChange.from}
-                            </div>
-                          `
-                        : ""}
                       ${conv.metadata?.branchInfo?.branchedFromId
                         ? html`<div class="provider-change-badge">
                             ↩ branch

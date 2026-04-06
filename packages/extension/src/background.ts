@@ -259,7 +259,13 @@ async function branchConversation(
       model: newPortion.source.model,
     },
     messages: [
-      ...sourceMessages,
+      ...sourceMessages.map((msg) => ({
+        ...msg,
+        metadata: {
+          ...msg.metadata,
+          originalPlatform: msg.metadata?.originalPlatform ?? existing.source.platform,
+        },
+      })),
       ...dedupedNewMessages.map((msg, idx) => ({
         ...msg,
         id: crypto.randomUUID(),
@@ -408,7 +414,13 @@ async function mergeConversations(
       },
     },
     messages: [
-      ...existing.messages,
+      ...existing.messages.map((msg) => ({
+        ...msg,
+        metadata: {
+          ...msg.metadata,
+          originalPlatform: msg.metadata?.originalPlatform ?? previousPlatform,
+        },
+      })),
       ...dedupedNewMessages.map((msg, idx) => ({
         ...msg,
         id: crypto.randomUUID(),
