@@ -1,6 +1,6 @@
 {
   "name": "@p0u4a/openchat",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "type": "module",
   "bin": {
     "openchat": "dist/index.mjs"
