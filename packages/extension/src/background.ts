@@ -72,6 +72,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     });
     return true;
   }
+
+  if (message.type === "openchat:sync-mcp") {
+    syncAllConversationsToBridge().then(() => {
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
 });
 
 function extractSourceRef(platform: string, data: unknown): SourceRef | null {

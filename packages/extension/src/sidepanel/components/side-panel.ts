@@ -20,6 +20,8 @@ import {
 } from "../../utils/conversation-markdown.js";
 import { pasteIcon } from "./icons/paste-icon.js";
 import { downloadIcon } from "./icons/download-icon.js";
+import { syncIcon } from "./icons/sync-icon.js";
+import { loaderIcon } from "./icons/loader-icon.js";
 import { isSupportedPage } from "../../utils/supported-page.js";
 
 @customElement("oc-sidepanel")
@@ -300,6 +302,15 @@ export class SidePanel extends LitElement {
       flex-shrink: 0;
     }
 
+    .paste-btn.syncing svg {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
     .conversation-card-row {
       display: flex;
       flex-direction: column;
@@ -446,6 +457,9 @@ export class SidePanel extends LitElement {
   @state()
   private branchSourceTitle: string | null = null;
 
+  @state()
+  private isSyncing = false;
+
   override connectedCallback() {
     super.connectedCallback();
     this.loadConversations();
@@ -570,6 +584,15 @@ export class SidePanel extends LitElement {
     e.stopPropagation();
     const slug = conv.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
     this.downloadJson(conv, `openchat-${slug}.json`);
+  }
+
+  private async syncWithMCP() {
+    this.isSyncing = true;
+    try {
+      await chrome.runtime.sendMessage({ type: "openchat:sync-mcp" });
+    } finally {
+      this.isSyncing = false;
+    }
   }
 
   private exportAllConversations() {
@@ -779,6 +802,14 @@ export class SidePanel extends LitElement {
     return html`
       <div class="header">
         <h1>OpenChat</h1>
+        <button
+          class="paste-btn${this.isSyncing ? " syncing" : ""}"
+          title="Sync with MCP"
+          ?disabled=${this.isSyncing}
+          @click=${this.syncWithMCP}
+        >
+          ${this.isSyncing ? loaderIcon : syncIcon}
+        </button>
         ${this.conversations.length > 0
           ? html`
               <button
