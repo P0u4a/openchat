@@ -16,25 +16,38 @@ const BRIDGE_HOST = "127.0.0.1";
 const MAX_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
 const BRIDGE_PORT_ENV = "OPENCHAT_BRIDGE_PORT";
 
+export type BridgeOptions = {
+  storePath: string;
+  port: number;
+  onConversationsChanged: () => void;
+};
+
 export async function startBridgeServer(
-  storePath: string,
-  port: number
+  options: BridgeOptions
 ): Promise<Server | null> {
+  const { storePath, port, onConversationsChanged } = options;
+
   const server = createServer((request, response) => {
-    void handleBridgeRequest(request, response, storePath, port);
+    void handleBridgeRequest(
+      request,
+      response,
+      storePath,
+      port,
+      onConversationsChanged
+    );
   });
 
-  return await new Promise<Server | null>((resolvePromise, rejectPromise) => {
+  return await new Promise<Server | null>((resolve, reject) => {
     const handleError = (error: NodeJS.ErrnoException) => {
       if (error.code === "EADDRINUSE") {
         process.stderr.write(
           `[openchat] Bridge already active on http://${BRIDGE_HOST}:${port}\n`
         );
-        resolvePromise(null);
+        resolve(null);
         return;
       }
 
-      rejectPromise(error);
+      reject(error);
     };
 
     server.once("error", handleError);
@@ -43,7 +56,7 @@ export async function startBridgeServer(
       process.stderr.write(
         `[openchat] Bridge listening on http://${BRIDGE_HOST}:${port}\n`
       );
-      resolvePromise(server);
+      resolve(server);
     });
   });
 }
@@ -52,7 +65,8 @@ export async function handleBridgeRequest(
   request: IncomingMessage,
   response: ServerResponse,
   storePath: string,
-  port: number
+  port: number,
+  onConversationsChanged: () => void
 ): Promise<void> {
   const corsHeaders = buildCorsHeaders(request);
   const origin = request.headers.origin;
@@ -98,6 +112,8 @@ export async function handleBridgeRequest(
         saveConversations(storePath, payload.conversations)
       );
 
+      onConversationsChanged();
+
       sendJson(
         response,
         200,
@@ -118,6 +134,8 @@ export async function handleBridgeRequest(
       await withStoreMutation(() =>
         upsertConversation(storePath, payload.conversation)
       );
+
+      onConversationsChanged();
 
       sendJson(
         response,

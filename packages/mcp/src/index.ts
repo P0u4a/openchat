@@ -12,6 +12,10 @@ import { formatConversationMarkdown } from "./utils/conversation";
 import { loadConversations, resolveStorePath } from "./store";
 import { resolveBridgePort, startBridgeServer } from "./http-bridge";
 import { getCliOption } from "./utils/cli";
+import {
+  searchConversations,
+  searchConversationsSchema,
+} from "./tools/conversation";
 
 const URI_TEMPLATE = "chat://{provider}/{slug}";
 
@@ -20,11 +24,16 @@ async function main(): Promise<void> {
   const bridgePortFlag = getCliOption("--bridge-port");
   const storePath = resolveStorePath(storePathFlag);
   const bridgePort = resolveBridgePort(bridgePortFlag);
-  await startBridgeServer(storePath, bridgePort);
 
   const server = new McpServer({
     name: "openchat",
     version: "0.0.1",
+  });
+
+  await startBridgeServer({
+    storePath,
+    port: bridgePort,
+    onConversationsChanged: () => server.sendResourceListChanged(),
   });
 
   const resourceTemplate = new ResourceTemplate(URI_TEMPLATE, {
@@ -61,6 +70,18 @@ async function main(): Promise<void> {
       },
     },
   });
+
+  const load = () => loadConversations(storePath);
+
+  server.registerTool(
+    "search_conversations",
+    {
+      description:
+        "Search conversation titles by regex pattern. Returns matching resource URIs that can be read individually.",
+      inputSchema: searchConversationsSchema,
+    },
+    searchConversations(load)
+  );
 
   server.registerResource(
     "chat-history",
