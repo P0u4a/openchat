@@ -6,4 +6,7 @@ export default defineConfig({
   format: ["esm"],
   outDir: "dist",
   dts: false,
+  deps: {
+    alwaysBundle: ["@p0u4a/openchat-core"],
+  },
 });

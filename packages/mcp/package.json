@@ -13,12 +13,12 @@
     "dev": "tsdown --watch"
   },
   "devDependencies": {
+    "@p0u4a/openchat-core": "workspace:*",
     "@types/node": "^25.5.0",
     "tsdown": "^0.21.4"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "@p0u4a/openchat-core": "workspace:*",
     "zod": "^4.3.6"
   }
 }
