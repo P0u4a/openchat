@@ -1,0 +1,9 @@
+{
+  "name": "openchat-mono",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "build": "pnpm -r build"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
