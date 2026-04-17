@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.34.48",
+    "@p0u4a/openchat-core": "workspace:*",
     "dompurify": "^3.3.3",
     "idb": "^8.0.3",
     "lit": "^3.3.2",

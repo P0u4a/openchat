@@ -1,8 +1,5 @@
-import type {
-  OpenChatConversation,
-  OpenChatProvider,
-  ResourceEntry,
-} from "./schema";
+import type { Conversation, Platform } from "@p0u4a/openchat-core";
+import type { ResourceEntry } from "./schema";
 import {
   stableConversationSuffix,
   slugify,
@@ -28,9 +25,9 @@ export function buildResourceMetadata(entry: ResourceEntry) {
   };
 }
 
-export function buildResourceIndex(conversations: OpenChatConversation[]): {
+export function buildResourceIndex(conversations: Conversation[]): {
   entries: ResourceEntry[];
-  byProvider: Map<OpenChatProvider, ResourceEntry[]>;
+  byProvider: Map<Platform, ResourceEntry[]>;
   byUri: Map<string, ResourceEntry>;
 } {
   const baseSlugCounts = new Map<string, number>();
@@ -60,7 +57,7 @@ export function buildResourceIndex(conversations: OpenChatConversation[]): {
     };
   });
 
-  const byProvider = new Map<OpenChatProvider, ResourceEntry[]>();
+  const byProvider = new Map<Platform, ResourceEntry[]>();
   const byUri = new Map<string, ResourceEntry>();
 
   for (const entry of entries) {

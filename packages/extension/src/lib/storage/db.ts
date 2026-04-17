@@ -1,21 +1,13 @@
 import { openDB, type IDBPDatabase } from "idb";
-import type { OpenChatConversation } from "../schema/conversation.js";
+import type {
+  ConversationStorage,
+  Conversation,
+  Platform,
+} from "@p0u4a/openchat-core";
 
 const DB_NAME = "openchat";
 const DB_VERSION = 1;
 const STORE_NAME = "conversations";
-
-export interface OpenChatDB {
-  conversations: {
-    key: string;
-    value: OpenChatConversation;
-    indexes: {
-      "by-platform": string;
-      "by-platform-id": [string, string];
-      "by-updated": string;
-    };
-  };
-}
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -36,58 +28,60 @@ function getDB() {
   );
 }
 
-export async function upsertConversation(
-  conversation: OpenChatConversation
-): Promise<void> {
-  const db = await getDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  const store = tx.objectStore(STORE_NAME);
-  const index = store.index("by-platform-id");
+export const storage: ConversationStorage = {
+  async upsert(conversation) {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const index = store.index("by-platform-id");
 
-  const existing = await index.get([
-    conversation.source.platform,
-    conversation.source.conversationId,
-  ]);
+    const existing = (await index.get([
+      conversation.source.platform,
+      conversation.source.conversationId,
+    ])) as Conversation | undefined;
 
-  if (existing) {
-    const updated: OpenChatConversation = {
-      ...existing,
-      title: conversation.title || existing.title,
-      updatedAt: conversation.updatedAt,
-      messages: conversation.messages,
-      source: { ...existing.source, ...conversation.source },
-      metadata: { ...existing.metadata, ...conversation.metadata },
-    };
-    await store.put(updated);
-  } else {
-    await store.put(conversation);
-  }
+    if (existing) {
+      const updated: Conversation = {
+        ...existing,
+        title: conversation.title || existing.title,
+        updatedAt: conversation.updatedAt,
+        messages: conversation.messages,
+        source: { ...existing.source, ...conversation.source },
+        metadata: { ...existing.metadata, ...conversation.metadata },
+      };
+      await store.put(updated);
+    } else {
+      await store.put(conversation);
+    }
 
-  await tx.done;
-}
+    await tx.done;
+  },
 
-export async function getConversation(
-  id: string
-): Promise<OpenChatConversation | undefined> {
-  const db = await getDB();
-  return db.get(STORE_NAME, id);
-}
+  async get(id) {
+    const db = await getDB();
+    return (await db.get(STORE_NAME, id)) as Conversation | undefined;
+  },
 
-export async function getAllConversations(): Promise<OpenChatConversation[]> {
-  const db = await getDB();
-  const all = await db.getAllFromIndex(STORE_NAME, "by-updated");
-  // Most recent chat first
-  return all.reverse();
-}
+  async getAll() {
+    const db = await getDB();
+    const all = (await db.getAllFromIndex(
+      STORE_NAME,
+      "by-updated"
+    )) as Conversation[];
+    return all.reverse();
+  },
 
-export async function getConversationsByPlatform(
-  platform: string
-): Promise<OpenChatConversation[]> {
-  const db = await getDB();
-  return db.getAllFromIndex(STORE_NAME, "by-platform", platform);
-}
+  async getByPlatform(platform: Platform) {
+    const db = await getDB();
+    return (await db.getAllFromIndex(
+      STORE_NAME,
+      "by-platform",
+      platform
+    )) as Conversation[];
+  },
 
-export async function deleteConversation(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete(STORE_NAME, id);
-}
+  async delete(id) {
+    const db = await getDB();
+    await db.delete(STORE_NAME, id);
+  },
+};

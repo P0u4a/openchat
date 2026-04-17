@@ -2,8 +2,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import process from "node:process";
-import { type OpenChatConversation, storeSchema } from "./schema";
-import { sortConversations } from "./utils/conversation";
+import {
+  sortConversations,
+  type Conversation,
+  type ConversationStorage,
+  type Platform,
+} from "@p0u4a/openchat-core";
+import { storeSchema } from "./schema";
 
 const STORE_PATH_ENV = "OPENCHAT_STORE_PATH";
 const DEFAULT_STORE_PATH = resolve(
@@ -29,7 +34,7 @@ export function resolveStorePath(argPath?: string): string {
 
 export async function loadConversations(
   storePath: string
-): Promise<OpenChatConversation[]> {
+): Promise<Conversation[]> {
   try {
     const raw = await readFile(storePath, "utf8");
     const parsed = storeSchema.parse(JSON.parse(raw));
@@ -51,7 +56,7 @@ export async function loadConversations(
 
 export async function saveConversations(
   storePath: string,
-  conversations: OpenChatConversation[]
+  conversations: Conversation[]
 ): Promise<void> {
   await mkdir(dirname(storePath), { recursive: true });
   await writeFile(
@@ -69,7 +74,7 @@ export async function saveConversations(
 
 export async function upsertConversation(
   storePath: string,
-  conversation: OpenChatConversation
+  conversation: Conversation
 ): Promise<void> {
   const conversations = await loadConversations(storePath);
   const nextConversations = [...conversations];
@@ -96,4 +101,32 @@ export function withStoreMutation<T>(operation: () => Promise<T>): Promise<T> {
   );
 
   return nextOperation;
+}
+
+export function createFileStorage(storePath: string): ConversationStorage {
+  return {
+    async upsert(conversation) {
+      await withStoreMutation(() => upsertConversation(storePath, conversation));
+    },
+    async get(id) {
+      const conversations = await loadConversations(storePath);
+      return conversations.find((c) => c.id === id);
+    },
+    async getAll() {
+      return sortConversations(await loadConversations(storePath));
+    },
+    async getByPlatform(platform: Platform) {
+      const conversations = await loadConversations(storePath);
+      return conversations.filter((c) => c.source.platform === platform);
+    },
+    async delete(id) {
+      await withStoreMutation(async () => {
+        const conversations = await loadConversations(storePath);
+        const next = conversations.filter((c) => c.id !== id);
+        if (next.length !== conversations.length) {
+          await saveConversations(storePath, next);
+        }
+      });
+    },
+  };
 }

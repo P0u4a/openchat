@@ -1,10 +1,10 @@
 import { toIsoTimestamp } from "../../utils/format.js";
 import type {
-  OpenChatConversation,
-  OpenChatContentBlock,
-  OpenChatMessage,
-} from "../schema/conversation.js";
-import { stripOpenChatRef } from "../../utils/conversation-markdown.js";
+  ContentBlock,
+  Conversation,
+  Message,
+} from "@p0u4a/openchat-core";
+import { stripOpenChatRef } from "@p0u4a/openchat-core";
 
 interface ChatGPTMessageAuthor {
   role?: string;
@@ -130,7 +130,7 @@ function shouldIncludeMessage(message: ChatGPTConversationMessage) {
 
 function parseContentBlocks(
   message: ChatGPTConversationMessage
-): OpenChatContentBlock[] {
+): ContentBlock[] {
   const contentType = message.content?.content_type;
   if (!message.content) {
     return [];
@@ -161,7 +161,7 @@ function parseContentBlocks(
 function parseMessage(
   message: ChatGPTConversationMessage,
   parentPlatformMessageId?: string
-): OpenChatMessage | null {
+): Message | null {
   const content = parseContentBlocks(message);
   if (content.length === 0) {
     return null;
@@ -192,14 +192,14 @@ function parseMessage(
 export function parseChatGPTConversation(
   data: ChatGPTConversationResponse,
   url: string
-): OpenChatConversation {
+): Conversation {
   if (!data.conversation_id) {
     throw new Error("ChatGPT conversation payload is missing conversation_id");
   }
 
   const lineageIds = getLineageIds(data);
 
-  const messages: OpenChatMessage[] = [];
+  const messages: Message[] = [];
   let previousVisiblePlatformMessageId: string | undefined;
   let latestAssistantModel: string | undefined;
 

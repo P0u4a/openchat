@@ -7,20 +7,15 @@ import {
   type ChatGPTConversationResponse,
 } from "./lib/parsers/chatgpt.js";
 import type {
-  OpenChatConversation,
-  OpenChatPlatform,
-  OpenChatBranchEntry,
-} from "./lib/schema/conversation.js";
-import {
-  upsertConversation,
-  getAllConversations,
-  getConversation,
-} from "./lib/storage/db.js";
-
+  BranchEntry,
+  Conversation,
+  Platform,
+} from "@p0u4a/openchat-core";
 import {
   formatConversationMarkdown,
   stripOpenChatRef,
-} from "./utils/conversation-markdown.js";
+} from "@p0u4a/openchat-core";
+import { storage } from "./lib/storage/db.js";
 
 const OPENCHAT_REF_REGEX = /\[openchat:ref:([^\]:]+)(?::([^\]]+))?\]/;
 
@@ -35,11 +30,11 @@ let hasLoggedBridgeFailure = false;
 type OpenChatBridgeMessage =
   | {
       type: "sync-conversations";
-      conversations: OpenChatConversation[];
+      conversations: Conversation[];
     }
   | {
       type: "upsert-conversation";
-      conversation: OpenChatConversation;
+      conversation: Conversation;
     };
 
 type OpenChatBridgeResponse = {
@@ -60,14 +55,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === "openchat:get-conversations") {
-    getAllConversations().then((conversations) => {
+    storage.getAll().then((conversations) => {
       sendResponse({ conversations });
     });
     return true;
   }
 
   if (message.type === "openchat:get-conversation") {
-    getConversation(message.id).then((conversation) => {
+    storage.get(message.id).then((conversation) => {
       sendResponse({ conversation: conversation ?? null });
     });
     return true;
@@ -155,7 +150,7 @@ type ForkDecision =
   | { type: "fork"; branchPointMessageId: string };
 
 function detectForkOrContinuation(
-  existing: OpenChatConversation,
+  existing: Conversation,
   lastMessageId: string | null
 ): ForkDecision {
   if (!lastMessageId) return { type: "continue" };
@@ -175,10 +170,10 @@ function detectForkOrContinuation(
  * preserving any additional text the user typed after the paste.
  */
 function stripPastedContent(
-  messages: OpenChatConversation["messages"],
-  sourceConversation: OpenChatConversation,
+  messages: Conversation["messages"],
+  sourceConversation: Conversation,
   branchPointMessageId: string | null
-): OpenChatConversation["messages"] {
+): Conversation["messages"] {
   // Find the first user message (the paste message)
   const pasteIdx = messages.findIndex((m) => m.role === "user");
   if (pasteIdx === -1) return messages;
@@ -199,14 +194,14 @@ function stripPastedContent(
       sourceMessages = sourceMessages.slice(0, bpIdx + 1);
     }
   }
-  const sourceForComparison: OpenChatConversation = {
+  const sourceForComparison: Conversation = {
     ...sourceConversation,
     messages: sourceMessages,
   };
-  const expectedMarkdown = formatConversationMarkdown(
-    sourceForComparison,
-    false
-  );
+  const expectedMarkdown = formatConversationMarkdown(sourceForComparison, {
+    mode: "simple",
+    includeRef: false,
+  });
 
   // Strip the ref first, then check if the content starts with the expected markdown
   const strippedText = stripOpenChatRef(pasteText);
@@ -232,8 +227,8 @@ function stripPastedContent(
 }
 
 async function branchConversation(
-  existing: OpenChatConversation,
-  newPortion: OpenChatConversation,
+  existing: Conversation,
+  newPortion: Conversation,
   branchPointMessageId: string
 ): Promise<void> {
   // Copy messages from source up to and including the branch point
@@ -254,7 +249,7 @@ async function branchConversation(
 
   const branchId = crypto.randomUUID();
 
-  const branch: OpenChatConversation = {
+  const branch: Conversation = {
     id: branchId,
     title: newPortion.title,
     createdAt: newPortion.createdAt,
@@ -279,7 +274,7 @@ async function branchConversation(
         parentId: idx === 0 && lastSourceMsg ? lastSourceMsg.id : undefined,
         metadata: {
           ...msg.metadata,
-          originalPlatform: newPortion.source.platform as OpenChatPlatform,
+          originalPlatform: newPortion.source.platform as Platform,
         },
       })),
     ],
@@ -292,7 +287,7 @@ async function branchConversation(
   };
 
   // Update the source conversation to record the branch
-  const branchEntry: OpenChatBranchEntry = {
+  const branchEntry: BranchEntry = {
     conversationId: branchId,
     atMessageId: branchPointMessageId,
     title: newPortion.title,
@@ -300,7 +295,7 @@ async function branchConversation(
   };
 
   const existingBranches = existing.metadata?.branchInfo?.branches ?? [];
-  const updatedExisting: OpenChatConversation = {
+  const updatedExisting: Conversation = {
     ...existing,
     metadata: {
       ...existing.metadata,
@@ -312,8 +307,8 @@ async function branchConversation(
   };
 
   await Promise.all([
-    upsertConversation(updatedExisting),
-    upsertConversation(branch),
+    storage.upsert(updatedExisting),
+    storage.upsert(branch),
   ]);
 
   console.log(
@@ -333,7 +328,7 @@ async function handleCapturedConversation(message: {
   data: unknown;
 }) {
   try {
-    let conversation: OpenChatConversation;
+    let conversation: Conversation;
 
     if (message.platform === "claude") {
       conversation = parseClaudeConversation(
@@ -352,7 +347,7 @@ async function handleCapturedConversation(message: {
     const sourceRef = extractSourceRef(message.platform, message.data);
 
     if (sourceRef) {
-      const existing = await getConversation(sourceRef.conversationId);
+      const existing = await storage.get(sourceRef.conversationId);
       if (existing) {
         const action = detectForkOrContinuation(
           existing,
@@ -381,11 +376,11 @@ async function handleCapturedConversation(message: {
 }
 
 async function mergeConversations(
-  existing: OpenChatConversation,
-  newPortion: OpenChatConversation
+  existing: Conversation,
+  newPortion: Conversation
 ): Promise<void> {
   const lastMessage = existing.messages[existing.messages.length - 1];
-  const previousPlatform = existing.source.platform as OpenChatPlatform;
+  const previousPlatform = existing.source.platform as Platform;
 
   // Strip pasted content from the new messages
   const dedupedNewMessages = stripPastedContent(
@@ -394,7 +389,7 @@ async function mergeConversations(
     null
   );
 
-  const merged: OpenChatConversation = {
+  const merged: Conversation = {
     ...existing,
     updatedAt: newPortion.updatedAt,
     source: {
@@ -434,13 +429,13 @@ async function mergeConversations(
         parentId: idx === 0 && lastMessage ? lastMessage.id : undefined,
         metadata: {
           ...msg.metadata,
-          originalPlatform: newPortion.source.platform as OpenChatPlatform,
+          originalPlatform: newPortion.source.platform as Platform,
         },
       })),
     ],
   };
 
-  await upsertConversation(merged);
+  await storage.upsert(merged);
 
   console.log(
     `[OpenChat] Merged conversation: "${existing.title}" (${previousPlatform} → ${newPortion.source.platform})`
@@ -452,7 +447,7 @@ async function mergeConversations(
   ]);
 }
 
-async function handleSavedConversation(conversation: OpenChatConversation) {
+async function handleSavedConversation(conversation: Conversation) {
   const messagesWithoutRefs = conversation.messages.map((msg) => {
     if (msg.role !== "user") return msg;
     const strippedContent = msg.content.map((block) => {
@@ -470,7 +465,7 @@ async function handleSavedConversation(conversation: OpenChatConversation) {
     messages: messagesWithoutRefs,
   };
 
-  await upsertConversation(conversationWithoutRefs);
+  await storage.upsert(conversationWithoutRefs);
   console.log(
     `[OpenChat] Saved ${conversation.source.platform} conversation: "${conversation.title}" (${conversation.messages.length} messages)`
   );
@@ -492,14 +487,14 @@ async function notifyConversationUpdated() {
 }
 
 async function syncAllConversationsToBridge() {
-  const conversations = await getAllConversations();
+  const conversations = await storage.getAll();
   await sendMessageToBridge("/conversations/sync", {
     type: "sync-conversations",
     conversations,
   });
 }
 
-async function upsertConversationInBridge(conversation: OpenChatConversation) {
+async function upsertConversationInBridge(conversation: Conversation) {
   await sendMessageToBridge("/conversations/upsert", {
     type: "upsert-conversation",
     conversation,

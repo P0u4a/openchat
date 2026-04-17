@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { buildResourceIndex } from "../resources";
-import type { OpenChatConversation, ResourceEntry } from "../schema";
+import type { Conversation } from "@p0u4a/openchat-core";
+import type { ResourceEntry } from "../schema";
 
 export const searchConversationsSchema = {
   pattern: z
@@ -16,7 +17,7 @@ function formatMatch(entry: ResourceEntry) {
   ].join("\n");
 }
 
-export type LoadConversations = () => Promise<OpenChatConversation[]>;
+export type LoadConversations = () => Promise<Conversation[]>;
 
 export function searchConversations(
   loadConversations: LoadConversations

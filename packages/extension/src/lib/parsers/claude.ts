@@ -1,9 +1,9 @@
 import type {
-  OpenChatConversation,
-  OpenChatMessage,
-  OpenChatContentBlock,
-} from "../schema/conversation.js";
-import { stripOpenChatRef } from "../../utils/conversation-markdown.js";
+  ContentBlock,
+  Conversation,
+  Message,
+} from "@p0u4a/openchat-core";
+import { stripOpenChatRef } from "@p0u4a/openchat-core";
 
 interface ClaudeContentBlock {
   type: "text" | "thinking";
@@ -49,7 +49,7 @@ export interface ClaudeConversationResponse {
   chat_messages: ClaudeChatMessage[];
 }
 
-function parseContentBlock(block: ClaudeContentBlock): OpenChatContentBlock {
+function parseContentBlock(block: ClaudeContentBlock): ContentBlock {
   if (block.type === "thinking") {
     return {
       type: "thinking",
@@ -66,7 +66,7 @@ function parseContentBlock(block: ClaudeContentBlock): OpenChatContentBlock {
 function parseMessage(
   msg: ClaudeChatMessage,
   knownMessageUuids: Set<string>
-): OpenChatMessage {
+): Message {
   const role = msg.sender === "human" ? "user" : "assistant";
   const content = msg.content.map(parseContentBlock);
 
@@ -88,7 +88,7 @@ function parseMessage(
 export function parseClaudeConversation(
   data: ClaudeConversationResponse,
   url: string
-): OpenChatConversation {
+): Conversation {
   const messageUuids = new Set(data.chat_messages.map((m) => m.uuid));
   const messages = data.chat_messages
     .toSorted((a, b) => a.index - b.index)

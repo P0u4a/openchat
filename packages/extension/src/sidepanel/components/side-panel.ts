@@ -8,16 +8,16 @@ import { chatgptIcon } from "./icons/chatgpt-icon.js";
 import { sortLatestIcon } from "./icons/sort-latest.js";
 import { sortEarliestIcon } from "./icons/sort-earliest.js";
 import type {
-  OpenChatConversation,
-  OpenChatContentBlock,
-  OpenChatMessage,
-} from "../../lib/schema/conversation.js";
-import { renderMarkdown } from "../../utils/markdown.js";
+  ContentBlock,
+  Conversation,
+  Message,
+} from "@p0u4a/openchat-core";
 import {
   formatConversationMarkdown,
   formatMessageMarkdown,
   PASTE_REPLY_LABEL,
-} from "../../utils/conversation-markdown.js";
+} from "@p0u4a/openchat-core";
+import { renderMarkdown } from "../../utils/markdown.js";
 import { pasteIcon } from "./icons/paste-icon.js";
 import { downloadIcon } from "./icons/download-icon.js";
 import { syncIcon } from "./icons/sync-icon.js";
@@ -434,10 +434,10 @@ export class SidePanel extends LitElement {
   `;
 
   @state()
-  private conversations: OpenChatConversation[] = [];
+  private conversations: Conversation[] = [];
 
   @state()
-  private selectedConversation: OpenChatConversation | null = null;
+  private selectedConversation: Conversation | null = null;
 
   @state()
   private searchQuery = "";
@@ -556,13 +556,19 @@ export class SidePanel extends LitElement {
     });
   }
 
-  private pasteConversation(e: Event, conv: OpenChatConversation) {
+  private pasteConversation(e: Event, conv: Conversation) {
     e.stopPropagation();
     const lastMsgId = conv.messages.at(-1)?.id;
-    this.pasteToChat(formatConversationMarkdown(conv, true, lastMsgId));
+    this.pasteToChat(
+      formatConversationMarkdown(conv, {
+        mode: "simple",
+        includeRef: true,
+        lastMessageId: lastMsgId,
+      })
+    );
   }
 
-  private pasteMessage(msg: OpenChatMessage, convId: string) {
+  private pasteMessage(msg: Message, convId: string) {
     const conv = this.selectedConversation;
     const lastMsgId = conv?.messages.at(-1)?.id;
     this.pasteToChat(formatMessageMarkdown(msg, convId, lastMsgId));
@@ -580,7 +586,7 @@ export class SidePanel extends LitElement {
     URL.revokeObjectURL(url);
   }
 
-  private exportConversation(e: Event, conv: OpenChatConversation) {
+  private exportConversation(e: Event, conv: Conversation) {
     e.stopPropagation();
     const slug = conv.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
     this.downloadJson(conv, `openchat-${slug}.json`);
@@ -599,7 +605,7 @@ export class SidePanel extends LitElement {
     this.downloadJson(this.conversations, "openchat-conversations.json");
   }
 
-  private selectConversation(conv: OpenChatConversation) {
+  private selectConversation(conv: Conversation) {
     this.selectedConversation = conv;
     this.branchSourceTitle = null;
     if (conv.metadata?.branchInfo?.branchedFromId) {
@@ -632,7 +638,7 @@ export class SidePanel extends LitElement {
     }
   }
 
-  private renderContentBlock(block: OpenChatContentBlock) {
+  private renderContentBlock(block: ContentBlock) {
     switch (block.type) {
       case "thinking":
         return html`<div class="thinking-block">${block.text}</div>`;

@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@p0u4a/openchat-core": "workspace:*",
     "zod": "^4.3.6"
   }
 }
