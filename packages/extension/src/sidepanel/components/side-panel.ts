@@ -24,6 +24,7 @@ import { pasteIcon } from "./icons/paste-icon.js";
 import { downloadIcon } from "./icons/download-icon.js";
 import { syncIcon } from "./icons/sync-icon.js";
 import { loaderIcon } from "./icons/loader-icon.js";
+import { clipboardIcon } from "./icons/clipboard-icon.js";
 
 const LOGO_MAP = {
   claude: claudeIcon,
@@ -598,6 +599,16 @@ export class SidePanel extends LitElement {
     this.openDropdownKey = null;
   }
 
+  private async copyToClipboard(text: string, e: Event) {
+    e.stopPropagation();
+    this.openDropdownKey = null;
+    try {
+      await navigator.clipboard.writeText(text + "\n");
+    } catch (err) {
+      console.error("[OpenChat] Failed to copy to clipboard:", err);
+    }
+  }
+
   private renderPasteDropdown(key: string, text: string, label?: string) {
     const isOpen = this.openDropdownKey === key;
     return html`
@@ -633,6 +644,14 @@ export class SidePanel extends LitElement {
                 >
                   <span class="provider-logo claude">${claudeIcon}</span>
                   Open in Claude
+                </button>
+                <button
+                  class="paste-dropdown-item"
+                  role="menuitem"
+                  @click=${(e: Event) => this.copyToClipboard(text, e)}
+                >
+                  <span class="provider-logo">${clipboardIcon}</span>
+                  Copy to Clipboard
                 </button>
               </div>
             `
