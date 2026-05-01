@@ -11,6 +11,7 @@ import type {
   ContentBlock,
   Conversation,
   Message,
+  Platform,
 } from "@p0u4a/openchat-core";
 import {
   formatConversationMarkdown,
@@ -18,11 +19,16 @@ import {
   PASTE_REPLY_LABEL,
 } from "@p0u4a/openchat-core";
 import { renderMarkdown } from "../../utils/markdown.js";
+import { buildOpenInChatUrl } from "../../utils/format.js";
 import { pasteIcon } from "./icons/paste-icon.js";
 import { downloadIcon } from "./icons/download-icon.js";
 import { syncIcon } from "./icons/sync-icon.js";
 import { loaderIcon } from "./icons/loader-icon.js";
-import { isSupportedPage } from "../../utils/supported-page.js";
+
+const LOGO_MAP = {
+  claude: claudeIcon,
+  chatgpt: chatgptIcon,
+};
 
 @customElement("oc-sidepanel")
 export class SidePanel extends LitElement {
@@ -307,8 +313,56 @@ export class SidePanel extends LitElement {
     }
 
     @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .paste-dropdown-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
+    .paste-dropdown {
+      position: absolute;
+      bottom: calc(100% + var(--space-1));
+      left: 100%;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      min-width: 11rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-1);
+      box-shadow: 0 4px 12px oklch(0% 0 0 / 0.15);
+    }
+
+    .paste-dropdown-item {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      background: none;
+      border: none;
+      border-radius: var(--radius);
+      padding: var(--space-1_5) var(--space-2_5);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: var(--text-sm);
+      color: var(--text);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .paste-dropdown-item:hover {
+      background: var(--bg-secondary);
+    }
+
+    .paste-dropdown-item .provider-logo {
+      margin-right: 0;
     }
 
     .conversation-card-row {
@@ -401,8 +455,6 @@ export class SidePanel extends LitElement {
       margin: var(--space-2) 0;
     }
 
-
-
     .branch-banner {
       font-size: var(--text-xs);
       color: var(--text-secondary);
@@ -449,21 +501,21 @@ export class SidePanel extends LitElement {
   private sortOrder: "latest" | "earliest" = "latest";
 
   @state()
-  private activeTabId: number | null = null;
-
-  @state()
-  private isOnSupportedPage = false;
-
-  @state()
   private branchSourceTitle: string | null = null;
 
   @state()
   private isSyncing = false;
 
+  @state()
+  private openDropdownKey: string | null = null;
+
+  private readonly closeDropdown = () => {
+    if (this.openDropdownKey !== null) this.openDropdownKey = null;
+  };
+
   override connectedCallback() {
     super.connectedCallback();
     this.loadConversations();
-    this.updateActiveTab();
 
     chrome.runtime.onMessage.addListener((message) => {
       if (message.type === "openchat:conversation-updated") {
@@ -471,10 +523,12 @@ export class SidePanel extends LitElement {
       }
     });
 
-    chrome.tabs.onActivated.addListener(() => this.updateActiveTab());
-    chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
-      if (changeInfo.url) this.updateActiveTab();
-    });
+    document.addEventListener("click", this.closeDropdown);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener("click", this.closeDropdown);
   }
 
   private async loadConversations() {
@@ -533,45 +587,70 @@ export class SidePanel extends LitElement {
     return date.toLocaleDateString();
   }
 
-  private async updateActiveTab() {
-    const [tab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-
-    if (tab?.id && tab.url) {
-      this.activeTabId = tab.id;
-      this.isOnSupportedPage = isSupportedPage(tab.url);
-    } else {
-      this.activeTabId = null;
-      this.isOnSupportedPage = false;
-    }
-  }
-
-  private async pasteToChat(text: string) {
-    if (!this.activeTabId || !this.isOnSupportedPage) return;
-    await chrome.tabs.sendMessage(this.activeTabId, {
-      type: "openchat:paste-chat",
-      text,
-    });
-  }
-
-  private pasteConversation(e: Event, conv: Conversation) {
+  private toggleDropdown(key: string, e: Event) {
     e.stopPropagation();
-    const lastMsgId = conv.messages.at(-1)?.id;
-    this.pasteToChat(
-      formatConversationMarkdown(conv, {
-        mode: "simple",
-        includeRef: true,
-        lastMessageId: lastMsgId,
-      })
-    );
+    this.openDropdownKey = this.openDropdownKey === key ? null : key;
   }
 
-  private pasteMessage(msg: Message, convId: string) {
-    const conv = this.selectedConversation;
-    const lastMsgId = conv?.messages.at(-1)?.id;
-    this.pasteToChat(formatMessageMarkdown(msg, convId, lastMsgId));
+  private openInChat(platform: Platform, text: string, e: Event) {
+    e.stopPropagation();
+    chrome.tabs.create({ url: buildOpenInChatUrl(platform, text + "\n") });
+    this.openDropdownKey = null;
+  }
+
+  private renderPasteDropdown(key: string, text: string, label?: string) {
+    const isOpen = this.openDropdownKey === key;
+    return html`
+      <div class="paste-dropdown-wrap">
+        <button
+          class="paste-btn"
+          title="Open in chat"
+          aria-haspopup="menu"
+          aria-expanded=${isOpen ? "true" : "false"}
+          @click=${(e: Event) => this.toggleDropdown(key, e)}
+        >
+          ${pasteIcon}${label ? html` ${label}` : ""}
+        </button>
+        ${isOpen
+          ? html`
+              <div
+                class="paste-dropdown"
+                role="menu"
+                @click=${(e: Event) => e.stopPropagation()}
+              >
+                <button
+                  class="paste-dropdown-item"
+                  role="menuitem"
+                  @click=${(e: Event) => this.openInChat("chatgpt", text, e)}
+                >
+                  <span class="provider-logo chatgpt">${chatgptIcon}</span>
+                  Open in ChatGPT
+                </button>
+                <button
+                  class="paste-dropdown-item"
+                  role="menuitem"
+                  @click=${(e: Event) => this.openInChat("claude", text, e)}
+                >
+                  <span class="provider-logo claude">${claudeIcon}</span>
+                  Open in Claude
+                </button>
+              </div>
+            `
+          : ""}
+      </div>
+    `;
+  }
+
+  private conversationPasteText(conv: Conversation): string {
+    return formatConversationMarkdown(conv, {
+      mode: "simple",
+      includeRef: true,
+      lastMessageId: conv.messages.at(-1)?.id,
+    });
+  }
+
+  private messagePasteText(msg: Message, conv: Conversation): string {
+    return formatMessageMarkdown(msg, conv.id, conv.messages.at(-1)?.id);
   }
 
   private downloadJson(data: unknown, filename: string) {
@@ -588,7 +667,10 @@ export class SidePanel extends LitElement {
 
   private exportConversation(e: Event, conv: Conversation) {
     e.stopPropagation();
-    const slug = conv.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
+    const slug = conv.title
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9]+/g, "-")
+      .slice(0, 50);
     this.downloadJson(conv, `openchat-${slug}.json`);
   }
 
@@ -734,7 +816,7 @@ export class SidePanel extends LitElement {
               ${msg.role === "assistant"
                 ? html`
                     <div class="provider-logo ${effectiveProvider}">
-                      ${effectiveProvider === "claude" ? claudeIcon : chatgptIcon}
+                      ${LOGO_MAP[effectiveProvider]}
                     </div>
                   `
                 : ""}
@@ -743,14 +825,10 @@ export class SidePanel extends LitElement {
                 ${msg.role === "assistant"
                   ? html`
                       <div class="message-footer">
-                        <button
-                          class="paste-btn"
-                          ?disabled=${!this.isOnSupportedPage}
-                          title="Paste message into chat"
-                          @click=${() => this.pasteMessage(msg, conv.id)}
-                        >
-                          ${pasteIcon}
-                        </button>
+                        ${this.renderPasteDropdown(
+                          `msg-${conv.id}-${msg.id}`,
+                          this.messagePasteText(msg, conv)
+                        )}
                       </div>
                     `
                   : ""}
@@ -854,14 +932,17 @@ export class SidePanel extends LitElement {
                       <div class="conversation-title">${conv.title}</div>
                       <div class="conversation-meta">
                         <span class="platform-badge ${conv.source.platform}">
-                          ${(conv.metadata?.lastProviderChange?.to ?? conv.source.platform) === "claude"
+                          ${(conv.metadata?.lastProviderChange?.to ??
+                            conv.source.platform) === "claude"
                             ? claudeIcon
-                            : (conv.metadata?.lastProviderChange?.to ?? conv.source.platform) === "chatgpt"
+                            : (conv.metadata?.lastProviderChange?.to ??
+                                  conv.source.platform) === "chatgpt"
                               ? html`<span class="platform-icon-wrap chatgpt"
                                   >${chatgptIcon}</span
                                 >`
                               : ""}
-                          ${conv.metadata?.lastProviderChange?.to ?? conv.source.platform}
+                          ${conv.metadata?.lastProviderChange?.to ??
+                          conv.source.platform}
                         </span>
                         <span>${conv.messages.length} messages</span>
                         <span>${this.formatDate(conv.updatedAt)}</span>
@@ -882,14 +963,11 @@ export class SidePanel extends LitElement {
                         : ""}
                     </div>
                     <div style="display:flex;gap:var(--space-2)">
-                      <button
-                        class="paste-btn"
-                        ?disabled=${!this.isOnSupportedPage}
-                        title="Paste conversation into chat"
-                        @click=${(e: Event) => this.pasteConversation(e, conv)}
-                      >
-                        ${pasteIcon} Paste
-                      </button>
+                      ${this.renderPasteDropdown(
+                        `conv-${conv.id}`,
+                        this.conversationPasteText(conv),
+                        "Paste"
+                      )}
                       <button
                         class="paste-btn"
                         title="Export conversation as JSON"

@@ -1,3 +1,6 @@
+import type { Platform } from "@p0u4a/openchat-core";
+import { CHATGPT_ORIGIN, CLAUDE_ORIGIN } from "../lib/constants";
+
 export function decodeBase64(value: string): string | null {
   try {
     return globalThis.atob(value);
@@ -24,4 +27,11 @@ export function toIsoTimestamp(value: number | string | null | undefined) {
   }
 
   return undefined;
+}
+
+export function buildOpenInChatUrl(platform: Platform, text: string): string {
+  const encoded = encodeURIComponent(text);
+  return platform === "chatgpt"
+    ? `${CHATGPT_ORIGIN}/?prompt=${encoded}`
+    : `${CLAUDE_ORIGIN}/new?q=${encoded}`;
 }
