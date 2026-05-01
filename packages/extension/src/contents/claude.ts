@@ -5,7 +5,6 @@
  */
 
 import { CLAUDE_ORIGIN } from "../lib/constants.js";
-import { tryPasteChat } from "../utils/paste-chat.js";
 
 function injectInterceptor() {
   const script = document.createElement("script");
@@ -30,14 +29,5 @@ function relayToBackground() {
   });
 }
 
-function listenForPaste() {
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === "openchat:paste-chat") {
-      sendResponse({ ok: tryPasteChat(message.text) });
-    }
-  });
-}
-
 injectInterceptor();
 relayToBackground();
-listenForPaste();
