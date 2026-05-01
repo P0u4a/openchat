@@ -25,6 +25,8 @@ import { downloadIcon } from "./icons/download-icon.js";
 import { syncIcon } from "./icons/sync-icon.js";
 import { loaderIcon } from "./icons/loader-icon.js";
 import { clipboardIcon } from "./icons/clipboard-icon.js";
+import { dropdownMenuStyles, type DropdownItem } from "./dropdown-menu.js";
+import "./dropdown-menu.js";
 
 const LOGO_MAP = {
   claude: claudeIcon,
@@ -33,458 +35,417 @@ const LOGO_MAP = {
 
 @customElement("oc-sidepanel")
 export class SidePanel extends LitElement {
-  static override readonly styles = css`
-    :host {
-      display: block;
-    }
-
-    .header {
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-      margin-bottom: var(--space-4);
-    }
-
-    .header h1 {
-      font-size: var(--text-base);
-      font-weight: 600;
-      margin: 0;
-      flex: 1;
-      text-wrap: pretty;
-    }
-
-    .back-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: var(--space-1) var(--space-2_5);
-      cursor: pointer;
-      font-size: var(--text-sm);
-      color: var(--text, inherit);
-    }
-
-    .back-btn:hover {
-      background: var(--bg-secondary);
-    }
-
-    .filters {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-2);
-      margin-bottom: var(--space-3);
-    }
-
-    .filters > div {
-      display: flex;
-      flex-direction: row;
-      gap: var(--space-2);
-    }
-
-    .search-input {
-      flex: 1;
-      width: 100%;
-      padding: var(--space-1_5) var(--space-2_5);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--bg);
-      color: var(--text);
-      font-size: var(--text-sm);
-      font-family: inherit;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-
-    .search-input:focus {
-      border-color: var(--accent);
-    }
-
-    .search-input::placeholder {
-      color: var(--text-secondary);
-    }
-
-    select {
-      appearance: base-select;
-      padding: var(--space-1_5) var(--space-2_5);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--bg);
-      color: var(--text);
-      font-size: var(--text-sm);
-      font-family: inherit;
-      cursor: pointer;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-
-    select:focus {
-      border-color: var(--accent);
-    }
-
-    select::picker(select) {
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--bg);
-      padding: var(--space-1);
-    }
-
-    select option {
-      padding: var(--space-1_5) var(--space-2_5);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-size: var(--text-sm);
-    }
-
-    select option:hover {
-      background: var(--bg-secondary);
-    }
-
-    select option:checked {
-      background: var(--accent);
-      color: oklch(98% 0 0);
-    }
-
-    .sort-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-1);
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: var(--space-1_5) var(--space-2_5);
-      cursor: pointer;
-      font-size: var(--text-sm);
-      font-family: inherit;
-      color: var(--text);
-      white-space: nowrap;
-      transition: border-color 0.15s;
-    }
-
-    .sort-btn:hover {
-      background: var(--bg-secondary);
-    }
-
-    .conversation-list {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-4);
-    }
-
-    .conversation-card {
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: var(--space-3);
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-
-    .conversation-card:hover {
-      background: var(--bg-secondary);
-    }
-
-    .conversation-title {
-      font-weight: 500;
-      margin-bottom: var(--space-1);
-    }
-
-    .conversation-meta {
-      font-size: var(--text-xs);
-      color: var(--text-secondary);
-      display: flex;
-      gap: var(--space-2);
-      align-items: center;
-    }
-
-    .platform-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-1);
-      font-size: var(--text-xs);
-      font-weight: 600;
-      padding: var(--space-0_5) var(--space-1_5);
-      border-radius: var(--radius);
-      text-transform: uppercase;
-      background: var(--bg-secondary);
-    }
-
-    .platform-badge.claude {
-      color: var(--claude-color);
-    }
-
-    .platform-badge.chatgpt {
-      color: var(--chatgpt-color);
-    }
-
-    .platform-icon-wrap {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 0;
-    }
-
-    .platform-icon-wrap.chatgpt {
-      background: oklch(100% 0 0);
-      border-radius: 999px;
-      padding: 2px;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: var(--space-12) var(--space-4);
-      color: var(--text-secondary);
-    }
-
-    .empty-state p {
-      margin-top: var(--space-2);
-      font-size: var(--text-sm);
-    }
-
-    .chat-view {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-3);
-    }
-
-    .message {
-      max-width: 85%;
-      padding: var(--space-1_5) var(--space-2_5);
-      border-radius: var(--radius);
-      font-size: var(--text-sm);
-      line-height: 1.5;
-      word-wrap: break-word;
-    }
-
-    .message.user {
-      align-self: flex-end;
-      background: var(--bg-secondary);
-      color: oklch(98% 0 0);
-      border-bottom-right-radius: var(--radius-sm);
-    }
-
-    .message.assistant {
-      align-self: flex-start;
-      background: transparent;
-      border-bottom-left-radius: var(--radius-sm);
-      display: flex;
-      align-items: flex-start;
-    }
-
-    .thinking-block {
-      font-style: italic;
-      opacity: 0.7;
-      font-size: var(--text-sm);
-      margin-bottom: var(--space-1_5);
-      padding-bottom: var(--space-1_5);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .paste-btn {
-      display: inline-flex;
-      align-items: center;
-      width: fit-content;
-      gap: var(--space-1);
-      background: none;
-      border: none;
-      border-radius: var(--radius);
-      padding: var(--space-1_5) var(--space-2_5);
-      cursor: pointer;
-      font-size: var(--text-xs);
-      font-family: inherit;
-      color: var(--text);
-      transition: background 0.15s;
-    }
-
-    .paste-btn:hover:not(:disabled) {
-      background: var(--bg-secondary);
-    }
-
-    .paste-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    .paste-btn svg {
-      flex-shrink: 0;
-    }
-
-    .paste-btn.syncing svg {
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      from {
-        transform: rotate(0deg);
+  static override readonly styles = [
+    dropdownMenuStyles,
+    css`
+      :host {
+        display: block;
       }
-      to {
-        transform: rotate(360deg);
+
+      .header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-bottom: var(--space-4);
       }
-    }
 
-    .paste-dropdown-wrap {
-      position: relative;
-      display: inline-block;
-    }
+      .header h1 {
+        font-size: var(--text-base);
+        font-weight: 600;
+        margin: 0;
+        flex: 1;
+        text-wrap: pretty;
+      }
 
-    .paste-dropdown {
-      position: absolute;
-      bottom: calc(100% + var(--space-1));
-      left: 100%;
-      z-index: 10;
-      display: flex;
-      flex-direction: column;
-      min-width: 11rem;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: var(--space-1);
-      box-shadow: 0 4px 12px oklch(0% 0 0 / 0.15);
-    }
+      .back-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: var(--space-1) var(--space-2_5);
+        cursor: pointer;
+        font-size: var(--text-sm);
+        color: var(--text, inherit);
+      }
 
-    .paste-dropdown-item {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-2);
-      background: none;
-      border: none;
-      border-radius: var(--radius);
-      padding: var(--space-1_5) var(--space-2_5);
-      cursor: pointer;
-      font-family: inherit;
-      font-size: var(--text-sm);
-      color: var(--text);
-      text-align: left;
-      white-space: nowrap;
-    }
+      .back-btn:hover {
+        background: var(--bg-secondary);
+      }
 
-    .paste-dropdown-item:hover {
-      background: var(--bg-secondary);
-    }
+      .filters {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        margin-bottom: var(--space-3);
+      }
 
-    .paste-dropdown-item .provider-logo {
-      margin-right: 0;
-    }
+      .filters > div {
+        display: flex;
+        flex-direction: row;
+        gap: var(--space-2);
+      }
 
-    .conversation-card-row {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-2);
-    }
+      .search-input {
+        flex: 1;
+        width: 100%;
+        padding: var(--space-1_5) var(--space-2_5);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg);
+        color: var(--text);
+        font-size: var(--text-sm);
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.15s;
+      }
 
-    .message-footer {
-      margin-top: var(--space-1_5);
-    }
+      .search-input:focus {
+        border-color: var(--accent);
+      }
 
-    .provider-logo {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 16px;
-      height: 16px;
-      border-radius: 4px;
-      overflow: hidden;
-      flex-shrink: 0;
-      margin-right: var(--space-2);
-    }
+      .search-input::placeholder {
+        color: var(--text-secondary);
+      }
 
-    .message.assistant {
-      display: flex;
-      align-items: flex-start;
-    }
+      select {
+        appearance: base-select;
+        padding: var(--space-1_5) var(--space-2_5);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg);
+        color: var(--text);
+        font-size: var(--text-sm);
+        font-family: inherit;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.15s;
+      }
 
-    .message.assistant .message-content {
-      flex: 1;
-    }
+      select:focus {
+        border-color: var(--accent);
+      }
 
-    .provider-logo svg {
-      width: 12px;
-      height: 12px;
-    }
+      select::picker(select) {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg);
+        padding: var(--space-1);
+      }
 
-    .provider-logo.chatgpt {
-      background: oklch(100% 0 0);
-      border-radius: 999px;
-      padding: 1px;
-    }
+      select option {
+        padding: var(--space-1_5) var(--space-2_5);
+        border-radius: var(--radius);
+        color: var(--text);
+        font-size: var(--text-sm);
+      }
 
-    .provider-logo.claude svg {
-      background: transparent;
-    }
+      select option:hover {
+        background: var(--bg-secondary);
+      }
 
-    .message pre {
-      background: oklch(20% 0.005 286);
-      color: oklch(90% 0.005 286);
-      padding: var(--space-2_5);
-      border-radius: var(--radius);
-      overflow-x: auto;
-      font-size: var(--text-sm);
-      margin: var(--space-1_5) 0;
-    }
+      select option:checked {
+        background: var(--accent);
+        color: oklch(98% 0 0);
+      }
 
-    .message .reply-label {
-      font-size: var(--text-xs);
-      color: var(--text-secondary);
-      margin-bottom: var(--space-1);
-      white-space: pre-line;
-    }
+      .sort-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: var(--space-1_5) var(--space-2_5);
+        cursor: pointer;
+        font-size: var(--text-sm);
+        font-family: inherit;
+        color: var(--text);
+        white-space: nowrap;
+        transition: border-color 0.15s;
+      }
 
-    .message .reply-snippet {
-      font-size: var(--text-2xs, 0.65rem);
-      color: var(--text-secondary);
-      font-style: italic;
-    }
+      .sort-btn:hover {
+        background: var(--bg-secondary);
+      }
 
-    .provider-change-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-1);
-      font-size: var(--text-xs);
-      color: var(--text-secondary);
-      margin-top: var(--space-1);
-    }
+      .conversation-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
 
-    .provider-switch-indicator {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: var(--space-2) 0;
-      font-size: var(--text-xs);
-      color: var(--text-secondary);
-      border-top: 1px dashed var(--border);
-      border-bottom: 1px dashed var(--border);
-      margin: var(--space-2) 0;
-    }
+      .conversation-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: var(--space-3);
+        cursor: pointer;
+        transition: background 0.15s;
+      }
 
-    .branch-banner {
-      font-size: var(--text-xs);
-      color: var(--text-secondary);
-      padding: var(--space-2) var(--space-2_5);
-      margin-bottom: var(--space-2);
-      border: 1px dashed var(--border);
-      border-radius: var(--radius);
-    }
+      .conversation-card:hover {
+        background: var(--bg-secondary);
+      }
 
-    .branch-indicator {
-      font-size: var(--text-xs);
-      color: var(--text-secondary);
-      padding: var(--space-1_5) 0;
-      border-left: 2px dashed var(--border);
-      padding-left: var(--space-2_5);
-      margin: var(--space-1) 0;
-    }
+      .conversation-title {
+        font-weight: 500;
+        margin-bottom: var(--space-1);
+      }
 
-    .branch-link {
-      color: var(--accent);
-      cursor: pointer;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
+      .conversation-meta {
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        display: flex;
+        gap: var(--space-2);
+        align-items: center;
+      }
 
-    .branch-link:hover {
-      opacity: 0.8;
-    }
-  `;
+      .platform-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-size: var(--text-xs);
+        font-weight: 600;
+        padding: var(--space-0_5) var(--space-1_5);
+        border-radius: var(--radius);
+        text-transform: uppercase;
+        background: var(--bg-secondary);
+      }
+
+      .platform-badge.claude {
+        color: var(--claude-color);
+      }
+
+      .platform-badge.chatgpt {
+        color: var(--chatgpt-color);
+      }
+
+      .platform-icon-wrap {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 0;
+      }
+
+      .platform-icon-wrap.chatgpt {
+        background: oklch(100% 0 0);
+        border-radius: 999px;
+        padding: 2px;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: var(--space-12) var(--space-4);
+        color: var(--text-secondary);
+      }
+
+      .empty-state p {
+        margin-top: var(--space-2);
+        font-size: var(--text-sm);
+      }
+
+      .chat-view {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+
+      .message {
+        max-width: 85%;
+        padding: var(--space-1_5) var(--space-2_5);
+        border-radius: var(--radius);
+        font-size: var(--text-sm);
+        line-height: 1.5;
+        word-wrap: break-word;
+      }
+
+      .message.user {
+        align-self: flex-end;
+        background: var(--bg-secondary);
+        color: oklch(98% 0 0);
+        border-bottom-right-radius: var(--radius-sm);
+      }
+
+      .message.assistant {
+        align-self: flex-start;
+        background: transparent;
+        border-bottom-left-radius: var(--radius-sm);
+        display: flex;
+        align-items: flex-start;
+      }
+
+      .thinking-block {
+        font-style: italic;
+        opacity: 0.7;
+        font-size: var(--text-sm);
+        margin-bottom: var(--space-1_5);
+        padding-bottom: var(--space-1_5);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .paste-btn {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        gap: var(--space-1);
+        background: none;
+        border: none;
+        border-radius: var(--radius);
+        padding: var(--space-1_5) var(--space-2_5);
+        cursor: pointer;
+        font-size: var(--text-xs);
+        font-family: inherit;
+        color: var(--text);
+        transition: background 0.15s;
+      }
+
+      .paste-btn:hover:not(:disabled) {
+        background: var(--bg-secondary);
+      }
+
+      .paste-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .paste-btn svg {
+        flex-shrink: 0;
+      }
+
+      .paste-btn.syncing svg {
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .conversation-card-row {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+
+      .message-footer {
+        margin-top: var(--space-1_5);
+      }
+
+      .provider-logo {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        overflow: hidden;
+        flex-shrink: 0;
+        margin-right: var(--space-2);
+      }
+
+      .message.assistant {
+        display: flex;
+        align-items: flex-start;
+      }
+
+      .message.assistant .message-content {
+        flex: 1;
+      }
+
+      .provider-logo svg {
+        width: 12px;
+        height: 12px;
+      }
+
+      .provider-logo.chatgpt {
+        background: oklch(100% 0 0);
+        border-radius: 999px;
+        padding: 1px;
+      }
+
+      .provider-logo.claude svg {
+        background: transparent;
+      }
+
+      .message pre {
+        background: oklch(20% 0.005 286);
+        color: oklch(90% 0.005 286);
+        padding: var(--space-2_5);
+        border-radius: var(--radius);
+        overflow-x: auto;
+        font-size: var(--text-sm);
+        margin: var(--space-1_5) 0;
+      }
+
+      .message .reply-label {
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        margin-bottom: var(--space-1);
+        white-space: pre-line;
+      }
+
+      .message .reply-snippet {
+        font-size: var(--text-2xs, 0.65rem);
+        color: var(--text-secondary);
+        font-style: italic;
+      }
+
+      .provider-change-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        margin-top: var(--space-1);
+      }
+
+      .provider-switch-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-2) 0;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        border-top: 1px dashed var(--border);
+        border-bottom: 1px dashed var(--border);
+        margin: var(--space-2) 0;
+      }
+
+      .branch-banner {
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        padding: var(--space-2) var(--space-2_5);
+        margin-bottom: var(--space-2);
+        border: 1px dashed var(--border);
+        border-radius: var(--radius);
+      }
+
+      .branch-indicator {
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        padding: var(--space-1_5) 0;
+        border-left: 2px dashed var(--border);
+        padding-left: var(--space-2_5);
+        margin: var(--space-1) 0;
+      }
+
+      .branch-link {
+        color: var(--accent);
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
+      .branch-link:hover {
+        opacity: 0.8;
+      }
+    `,
+  ];
 
   @state()
   private conversations: Conversation[] = [];
@@ -507,13 +468,6 @@ export class SidePanel extends LitElement {
   @state()
   private isSyncing = false;
 
-  @state()
-  private openDropdownKey: string | null = null;
-
-  private readonly closeDropdown = () => {
-    if (this.openDropdownKey !== null) this.openDropdownKey = null;
-  };
-
   override connectedCallback() {
     super.connectedCallback();
     this.loadConversations();
@@ -523,13 +477,6 @@ export class SidePanel extends LitElement {
         this.loadConversations();
       }
     });
-
-    document.addEventListener("click", this.closeDropdown);
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    document.removeEventListener("click", this.closeDropdown);
   }
 
   private async loadConversations() {
@@ -588,20 +535,11 @@ export class SidePanel extends LitElement {
     return date.toLocaleDateString();
   }
 
-  private toggleDropdown(key: string, e: Event) {
-    e.stopPropagation();
-    this.openDropdownKey = this.openDropdownKey === key ? null : key;
-  }
-
-  private openInChat(platform: Platform, text: string, e: Event) {
-    e.stopPropagation();
+  private openInChat(platform: Platform, text: string) {
     chrome.tabs.create({ url: buildOpenInChatUrl(platform, text + "\n") });
-    this.openDropdownKey = null;
   }
 
-  private async copyToClipboard(text: string, e: Event) {
-    e.stopPropagation();
-    this.openDropdownKey = null;
+  private async copyToClipboard(text: string) {
     try {
       await navigator.clipboard.writeText(text + "\n");
     } catch (err) {
@@ -609,54 +547,40 @@ export class SidePanel extends LitElement {
     }
   }
 
-  private renderPasteDropdown(key: string, text: string, label?: string) {
-    const isOpen = this.openDropdownKey === key;
+  private buildPasteItems(text: string): DropdownItem[] {
+    return [
+      {
+        icon: html`<span
+          style="background:oklch(100% 0 0);border-radius:999px;display:inline-flex;align-items:center;justify-content:center;padding:1px;"
+          >${chatgptIcon}</span
+        >`,
+        name: "Open in ChatGPT",
+        action: () => this.openInChat("chatgpt", text),
+      },
+      {
+        icon: claudeIcon,
+        name: "Open in Claude",
+        action: () => this.openInChat("claude", text),
+      },
+      {
+        icon: clipboardIcon,
+        name: "Copy to Clipboard",
+        action: () => this.copyToClipboard(text),
+      },
+    ];
+  }
+
+  private renderPasteDropdown(text: string, label?: string) {
+    const trigger = html`
+      <button class="paste-btn" title="Open in chat">
+        ${pasteIcon}${label ? html` ${label}` : ""}
+      </button>
+    `;
     return html`
-      <div class="paste-dropdown-wrap">
-        <button
-          class="paste-btn"
-          title="Open in chat"
-          aria-haspopup="menu"
-          aria-expanded=${isOpen ? "true" : "false"}
-          @click=${(e: Event) => this.toggleDropdown(key, e)}
-        >
-          ${pasteIcon}${label ? html` ${label}` : ""}
-        </button>
-        ${isOpen
-          ? html`
-              <div
-                class="paste-dropdown"
-                role="menu"
-                @click=${(e: Event) => e.stopPropagation()}
-              >
-                <button
-                  class="paste-dropdown-item"
-                  role="menuitem"
-                  @click=${(e: Event) => this.openInChat("chatgpt", text, e)}
-                >
-                  <span class="provider-logo chatgpt">${chatgptIcon}</span>
-                  Open in ChatGPT
-                </button>
-                <button
-                  class="paste-dropdown-item"
-                  role="menuitem"
-                  @click=${(e: Event) => this.openInChat("claude", text, e)}
-                >
-                  <span class="provider-logo claude">${claudeIcon}</span>
-                  Open in Claude
-                </button>
-                <button
-                  class="paste-dropdown-item"
-                  role="menuitem"
-                  @click=${(e: Event) => this.copyToClipboard(text, e)}
-                >
-                  <span class="provider-logo">${clipboardIcon}</span>
-                  Copy to Clipboard
-                </button>
-              </div>
-            `
-          : ""}
-      </div>
+      <oc-dropdown-menu
+        .items=${this.buildPasteItems(text)}
+        .trigger=${trigger}
+      ></oc-dropdown-menu>
     `;
   }
 
@@ -845,7 +769,6 @@ export class SidePanel extends LitElement {
                   ? html`
                       <div class="message-footer">
                         ${this.renderPasteDropdown(
-                          `msg-${conv.id}-${msg.id}`,
                           this.messagePasteText(msg, conv)
                         )}
                       </div>
@@ -983,7 +906,6 @@ export class SidePanel extends LitElement {
                     </div>
                     <div style="display:flex;gap:var(--space-2)">
                       ${this.renderPasteDropdown(
-                        `conv-${conv.id}`,
                         this.conversationPasteText(conv),
                         "Paste"
                       )}
